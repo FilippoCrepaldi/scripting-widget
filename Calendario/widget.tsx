@@ -75,9 +75,9 @@ function DataPiccola({ giorno = 0, lunga = true }: { giorno?: number, lunga?: bo
   </HStack>
 }
 // Numero di versione piccolo accanto alla data: serve per controllare che il widget usi il codice nuovo (da togliere poi)
-const VERSIONE = 'v1.1.7'
-// L'app Orologio non si può aprire direttamente da un widget: passa da un Comando Rapido "Apri Orologio" (azione "Apri app" → Orologio)
-const APRI_OROLOGIO = 'shortcuts://run-shortcut?name=' + encodeURIComponent('Apri Orologio')
+const VERSIONE = 'v1.1.8'
+// L'app Orologio non si può aprire direttamente da un widget: passa da un Comando Rapido "Apro Orologio" (azione "Apri app" → Orologio)
+const APRI_OROLOGIO = 'shortcuts://run-shortcut?name=' + encodeURIComponent('Apro Orologio')
 
 function Tondo({ icona, rosso = false, size = 26 }: { icona: string, rosso?: boolean, size?: number }) {
   return <ZStack frame={{ width: size, height: size }}>
