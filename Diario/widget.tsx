@@ -1,12 +1,11 @@
 // Widget "Diario" – Diario Alimentare di Filippo (app Scripting)
 // Medio: Cibo (o "corpo" se nel parametro del widget scrivi: corpo)
 // Piccolo: Cuore (o "movimento" se nel parametro scrivi: movimento)
-import { VStack, HStack, ZStack, Text, Spacer, Circle, Capsule, RoundedRectangle, Image, Link, Button, Widget } from 'scripting'
-import { AggiornaDiario } from './app_intents'
-import { carica as caricaDati, urlDati, DIARIO, Dati, Voce, oggi } from './comune'
-// Tutti i tocchi aprono il diario. Provato il 15/11: un "#apri=..." in fondo all'indirizzo NON arriva al diario
-// (l'artefatto gira in un riquadro che non vede l'indirizzo), quindi per ora niente schermata specifica.
-const apri = (_k: string) => DIARIO
+import { VStack, HStack, ZStack, Text, Spacer, Circle, Capsule, Image, Button, Widget } from 'scripting'
+import { AggiornaDiario, CambiaScheda } from './app_intents'
+import { carica as caricaDati, urlDati, DIARIO, Dati, Voce, oggi, leggi, prossimoPasto } from './comune'
+// Il tocco sul widget apre il diario. Provato il 15/11: un "#..." in fondo all'indirizzo NON arriva al diario,
+// quindi non si può aprire una schermata precisa.
 
 // ---------- colori ----------
 // colori di sistema: si adattano da soli a chiaro/scuro e allo sfondo sfocato
@@ -88,43 +87,88 @@ function Barra({ v, lo, hi, tone, larga }: { v: number, lo: number, hi: number, 
 const ICONA: Record<string, string> = { resp: "lungs.fill", rhr: "heart.fill", hrv: "waveform.path.ecg", spo2: "drop.fill", temp: "thermometer.medium", sonno: "bed.double.fill" }
 
 // ---------- widget ----------
-function Cibo({ d }: { d: Dati }) {
-  const c = d.cibo && d.cibo.data === oggi() ? d.cibo : { ...(d.cibo || PROVA.cibo!), kcal: 0, c: 0, p: 0, f: 0 }
+// Proposta 5 scelta da Filippo: kcal rimaste sempre a sinistra, a destra tre schede (Macro, Pasti, Prossimo)
+// cambiate con i tasti (azione CambiaScheda). Niente Link: così il tocco sul resto apre il diario (widgetURL).
+function Scheda({ id, nome, attiva }: { id: string, nome: string, attiva: boolean }) {
+  return <Button buttonStyle="plain" intent={CambiaScheda({ scheda: id })}>
+    <Text font={10} fontWeight="bold" foregroundStyle={attiva ? "white" : K.testo2}
+      padding={{ horizontal: 8, vertical: 3 }}
+      background={{ style: attiva ? K.kcal : K.riquadro, shape: { type: 'rect', cornerRadius: 9 } } as any}>{nome}</Text>
+  </Button>
+}
+function Macro({ c }: { c: any }) {
   const macro = [["Carbo", c.c, c.c_obj, K.carb], ["Proteine", c.p, c.p_obj, K.prot], ["Grassi", c.f, c.f_obj, K.fat]] as [string, number, number, string][]
-  const tasti: [string, string][] = [["photo.badge.plus", "foto"], ["camera", "camera"], ["barcode.viewfinder", "barcode"], ["character.cursor.ibeam", "scrivi"], ["bubble.left.and.text.bubble.right", "coach"]]
-  // Con un Link nel widget, Scripting ignora il tocco generale (widgetURL): per questo anche la parte alta è un Link
-  return <VStack spacing={0} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
-    <Link url={apri("home")} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
-    <VStack spacing={0} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'top' }}>
-    <HStack spacing={6} padding={{ top: 12, leading: 12, trailing: 12 }}>
-      <Anello size={68} w={8} pct={c.kcal / c.kcal_obj} colore={K.kcal}>
+  return <VStack spacing={7} frame={{ maxWidth: 'infinity' }}>
+    {macro.map(([l, a, b, col]) => {
+      const resto = b - a
+      return <VStack spacing={3} frame={{ maxWidth: 'infinity' }}>
+        <HStack>
+          <Text font={10} fontWeight="bold" foregroundStyle={col}>{l}</Text>
+          <Spacer />
+          <Text font={11} fontWeight="bold" foregroundStyle={resto < 0 ? K.bad : K.testo}>{resto < 0 ? `${nf(-resto)} g in più` : `${nf(resto)} g rimasti`}</Text>
+        </HStack>
+        <ZStack alignment="leading" frame={{ maxWidth: 'infinity', height: 5 }}>
+          <Capsule fill={K.traccia} frame={{ maxWidth: 'infinity', height: 5 }} />
+          <Capsule fill={col} frame={{ width: Math.max(5, 236 * Math.min(1, Math.max(0, a / (b || 1)))), height: 5 }} />
+        </ZStack>
+      </VStack>
+    })}
+  </VStack>
+}
+function Pasti({ d }: { d: Dati }) {
+  const lista = d.pasti && d.pasti.data === oggi() ? d.pasti.lista : []
+  const slots = (d.piano?.slots || []).map(s => s.nome)
+  const nomi = slots.length ? slots : [...new Set(lista.map(p => p.pasto))]
+  const righe = nomi.slice(0, 5).map(n => {
+    const ps = lista.filter(p => p.pasto === n)
+    return [n, ps.length ? nf(ps.reduce((t, p) => t + (p.kcal || 0), 0)) : "—"]
+  })
+  if (!righe.length) return <Text font={11} foregroundStyle={K.testo2}>Nessun pasto segnato oggi</Text>
+  return <VStack spacing={3} frame={{ maxWidth: 'infinity' }}>
+    {righe.map(([n, k]) => <HStack>
+      <Text font={11} fontWeight="semibold" foregroundStyle={K.testo} lineLimit={1}>{n}</Text>
+      <Spacer />
+      <Text font={11} fontWeight="bold" foregroundStyle={k === "—" ? K.testo3 : K.testo}>{k}</Text>
+    </HStack>)}
+  </VStack>
+}
+function Prossimo({ d }: { d: Dati }) {
+  const p = prossimoPasto(d)
+  return <VStack alignment="leading" spacing={2} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
+    {p.ore ? <Text font={10} fontWeight="semibold" foregroundStyle={K.testo3}>{p.ore}</Text> : null}
+    <Text font={16} fontWeight="heavy" foregroundStyle={K.testo}>{p.pasto}</Text>
+    <Text font={11} foregroundStyle={K.testo2} lineLimit={3}>{p.testo}</Text>
+  </VStack>
+}
+function Cibo({ d, ora }: { d: Dati, ora: string }) {
+  const c = d.cibo && d.cibo.data === oggi() ? d.cibo : { ...(d.cibo || PROVA.cibo!), kcal: 0, c: 0, p: 0, f: 0 }
+  const s = leggi("diario-scheda") || "macro"
+  return <HStack spacing={12} padding={{ top: 12, bottom: 10, leading: 12, trailing: 12 }} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
+    <VStack spacing={6}>
+      <Anello size={84} w={9} pct={c.kcal / c.kcal_obj} colore={K.kcal}>
         <VStack spacing={0}>
-          <Text font={16} fontWeight="heavy" foregroundStyle={K.testo}>{nf(c.kcal_obj - c.kcal)}</Text>
+          <Text font={19} fontWeight="heavy" foregroundStyle={K.testo}>{nf(c.kcal_obj - c.kcal)}</Text>
           <Text font={8} fontWeight="semibold" foregroundStyle={K.testo3}>kcal rimaste</Text>
         </VStack>
       </Anello>
-      {macro.map(([l, a, b, col]) =>
-        <VStack spacing={0} frame={{ maxWidth: 'infinity' }}>
-          <Semi size={58} w={7} pct={a / b} colore={col}>
-            <Text font={14} fontWeight="bold" foregroundStyle={K.testo}>{nf(b - a)}g</Text>
-          </Semi>
-          <Text font={10} fontWeight="bold" foregroundStyle={col}>{l}</Text>
-        </VStack>)}
-    </HStack>
-    <Spacer />
-    </VStack>
-    </Link>
-    <RoundedRectangle fill={K.traccia} frame={{ maxWidth: 'infinity', height: 1 }} />
-    <HStack spacing={0} frame={{ height: 40 }}>
-      {tasti.map(([ic, k]) =>
-        <Link url={apri(k)} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
-          <Image systemName={ic} font={17} foregroundStyle={K.testo2} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }} />
-        </Link>)}
-      <Button buttonStyle="plain" intent={AggiornaDiario({ motivo: "widget" })} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
-        <Image systemName="arrow.clockwise" font={17} foregroundStyle={K.testo2} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }} />
+      <Button buttonStyle="plain" intent={AggiornaDiario({ motivo: "widget" })}>
+        <HStack spacing={3} padding={{ horizontal: 6, vertical: 2 }}>
+          <Text font={9} fontWeight="semibold" foregroundStyle={K.testo3}>{ora}</Text>
+          <Image systemName="arrow.clockwise" font={10} foregroundStyle={K.testo2} />
+        </HStack>
       </Button>
-    </HStack>
-  </VStack>
+    </VStack>
+    <VStack alignment="leading" spacing={8} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
+      <HStack spacing={4}>
+        <Scheda id="macro" nome="Macro" attiva={s === "macro"} />
+        <Scheda id="pasti" nome="Pasti" attiva={s === "pasti"} />
+        <Scheda id="prossimo" nome="Prossimo" attiva={s === "prossimo"} />
+      </HStack>
+      <VStack frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
+        {s === "pasti" ? <Pasti d={d} /> : s === "prossimo" ? <Prossimo d={d} /> : <Macro c={c} />}
+      </VStack>
+    </VStack>
+  </HStack>
 }
 
 function Corpo({ d }: { d: Dati }) {
@@ -190,17 +234,18 @@ async function disegna() {
   const { d, prova } = await carica()
   const par = String(Widget.parameter || "").toLowerCase().trim()
   const fam = Widget.family
+  const ora = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })
+  const cibo = fam !== 'systemSmall' && par !== "corpo"
   const corpo = fam === 'systemSmall'
     ? (par === "movimento" ? <Movimento d={d} /> : <Cuore d={d} />)
-    : (par === "corpo" ? <Corpo d={d} /> : <Cibo d={d} />)
-  const ora = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })
+    : (par === "corpo" ? <Corpo d={d} /> : <Cibo d={d} ora={prova ? "PROVA" : ora} />)
   Widget.present(
-    <ZStack widgetBackground={K.sfondo} widgetURL={apri(fam === 'systemSmall' && par !== "movimento" ? "corpo" : "home")} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
+    <ZStack widgetBackground={K.sfondo} widgetURL={DIARIO} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
       {corpo}
-      {/* in alto a destra: PROVA senza indirizzo, altrimenti l'ora dell'ultimo aggiornamento (così si vede che ↻ ha funzionato) */}
-      <VStack frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topTrailing' }} padding={{ top: 6, trailing: 10 }}>
+      {/* in alto a destra l'ora dell'ultimo aggiornamento (nel Cibo sta sotto l'anello, vicino a ↻) */}
+      {cibo ? null : <VStack frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topTrailing' }} padding={{ top: 6, trailing: 10 }}>
         <Text font={8} fontWeight="bold" foregroundStyle={K.testo3}>{prova ? "PROVA" : ora}</Text>
-      </VStack>
+      </VStack>}
     </ZStack>,
     { policy: 'after', date: new Date(Date.now() + 15 * 60 * 1000) } as any
   )

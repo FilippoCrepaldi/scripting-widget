@@ -17,3 +17,14 @@ export const AggiornaDiario = AppIntentManager.register({
     try { await conLimite(salvaInSalute(d), 8000) } catch (e) { console.log("Salute: " + e) }
   }
 })
+
+// Cambia la scheda a destra del widget Cibo: "macro", "pasti" o "prossimo"
+export const CambiaScheda = AppIntentManager.register({
+  name: "CambiaScheda",
+  protocol: AppIntentProtocol.AppIntent,
+  perform: async ({ scheda }: { scheda: string }) => {
+    scrivi("diario-scheda", scheda)
+    await pausa(500)   // la memoria condivisa scrive in background
+    ricaricaWidget()
+  }
+})
