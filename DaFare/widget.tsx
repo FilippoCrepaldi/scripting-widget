@@ -16,13 +16,14 @@ const C: any = {
 
 function titolo(d: Dati) { return d.fonte === 'sera' ? 'Da fare domani' : 'Da fare oggi' }
 
-function Intestazione({ d }: { d: Dati }) {
+function Intestazione({ d, extra }: { d: Dati, extra?: string }) {
   const fonte = d.esempio ? 'esempio' : d.fonte === 'sera' ? 'sera' : 'mattino'
   return <HStack spacing={5}>
     <Image systemName="checklist" font={13} foregroundStyle={C.blu} />
-    <Text font={13} fontWeight="semibold" foregroundStyle={C.blu}>{titolo(d)}</Text>
+    <Text font={13} fontWeight="semibold" foregroundStyle={C.blu} lineLimit={1}>{titolo(d)}</Text>
+    {extra ? <Text font={11} fontWeight="semibold" foregroundStyle={C.terziario}>{extra}</Text> : null}
     <Spacer />
-    <Text font={11} fontWeight="medium" foregroundStyle={C.terziario}>{`${fonte} ${agg(d.aggiornato)}`}</Text>
+    <Text font={11} fontWeight="medium" foregroundStyle={C.terziario} lineLimit={1}>{`${fonte} ${agg(d.aggiornato)}`}</Text>
   </HStack>
 }
 
@@ -32,10 +33,10 @@ function Riga({ v, dettaglio }: { v: Voce, dettaglio: boolean }) {
   const etichetta = [t.nome, aperto(v.da)].filter(Boolean).join(' · ')
   return <HStack spacing={8} alignment="top">
     <Button buttonStyle="plain" intent={SegnaFatto({ id: v.id })}>
-      <Image systemName="circle" font={19} fontWeight="semibold" foregroundStyle={t.colore} />
+      <Image systemName="circle" font={dettaglio ? 19 : 17} fontWeight="semibold" foregroundStyle={t.colore} />
     </Button>
     <VStack alignment="leading" spacing={1}>
-      <Text font={14} fontWeight="medium" foregroundStyle={C.testo} lineLimit={1}>{v.testo}</Text>
+      <Text font={dettaglio ? 14 : 13} fontWeight="medium" foregroundStyle={C.testo} lineLimit={1}>{v.testo}</Text>
       {dettaglio ? <Text font={11} fontWeight="medium" foregroundStyle={t.colore} lineLimit={1}>{etichetta}</Text> : null}
     </VStack>
     <Spacer />
@@ -80,21 +81,22 @@ function Piccolo({ d, aperte, nFatte }: any) {
 }
 
 function Medio({ d, aperte, nFatte }: any) {
+  // nel medio lo spazio è poco: 4 righe da una linea, senza piede (fatte e altre vanno nell'intestazione)
   const vis = aperte.slice(0, 4)
-  return <VStack alignment="leading" spacing={7} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
-    <Intestazione d={d} />
+  const altre = aperte.length - vis.length
+  return <VStack alignment="leading" spacing={6} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
+    <Intestazione d={d} extra={[altre > 0 ? `+${altre}` : '', nFatte ? `✓${nFatte}` : ''].filter(Boolean).join(' ')} />
     {vis.length
       ? vis.map((v: Voce) => <Riga v={v} dettaglio={false} />)
       : <TuttoFatto testo={nFatte ? 'Tutto fatto' : 'Niente da fare'} />}
     <Spacer />
-    <Piede nFatte={nFatte} altre={aperte.length - vis.length} />
   </VStack>
 }
 
 function Grande({ d, aperte, nFatte }: any) {
   const app = (d.appuntamenti || []).slice(0, 2)
-  const vis = aperte.slice(0, app.length ? 6 : 7)
-  return <VStack alignment="leading" spacing={8} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
+  const vis = aperte.slice(0, app.length ? 5 : 6)
+  return <VStack alignment="leading" spacing={7} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
     <Intestazione d={d} />
     {app.length
       ? <VStack alignment="leading" spacing={3}>
