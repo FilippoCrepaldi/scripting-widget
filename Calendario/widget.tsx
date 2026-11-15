@@ -40,17 +40,15 @@ function Ora({ size }: { size: number }) {
 
 // Ore e minuti grandi, secondi sotto. L'ora che va avanti da sola è un unico testo "12:09:41":
 // lo mostro due volte e lo "ritaglio", una volta tenendo solo ore e minuti, una volta solo i secondi.
-// Mostra solo un pezzo del timer che parte da mezzanotte. Niente misure a occhio: un testo invisibile
-// con le stesse cifre ("15:00" o "00") decide la larghezza, e il timer ci viene disegnato sopra e ritagliato.
+// Mostra solo un pezzo del timer che parte da mezzanotte: l'inizio (HH:MM) o la fine (SS).
+// Larghezze in proporzione alla dimensione del carattere: "HH:MM" misura circa 2,74 volte, una cifra circa 0,62.
+// Si lascia un piccolo margine dopo l'ultima cifra: lì i ":" dei secondi sono ancora vuoti.
+const ORAMIN = 2.78, CIFRA = 0.62
 function Ritaglio({ size, inizio, colore, peso }: { size: number, inizio: boolean, colore: string, peso: string }) {
-  const sagoma = inizio ? `${ora.getHours()}:00` : '00'
-  return <HStack clipped>
-    <Text font={size} fontWeight={peso as any} monospacedDigit foregroundStyle="clear" lineLimit={1} fixedSize
-      overlay={{
-        alignment: inizio ? 'leading' : 'trailing',
-        content: <DateLabel date={mezzanotte} style="timer" font={size} fontWeight={peso as any} monospacedDigit
-          foregroundStyle={colore} lineLimit={1} fixedSize multilineTextAlignment={inizio ? 'leading' : 'trailing'} />,
-      }}>{sagoma}</Text>
+  const larghezza = inizio ? size * (ORAMIN - (ora.getHours() < 10 ? CIFRA : 0)) : size * 2 * CIFRA + 1
+  return <HStack frame={{ width: larghezza, height: size * 1.2, alignment: inizio ? 'leading' : 'trailing' }} clipped>
+    <DateLabel date={mezzanotte} style="timer" font={size} fontWeight={peso as any} monospacedDigit
+      foregroundStyle={colore} lineLimit={1} fixedSize multilineTextAlignment={inizio ? 'leading' : 'trailing'} />
   </HStack>
 }
 function OraESecondi({ size, sec }: { size: number, sec: number }) {

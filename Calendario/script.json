@@ -1,7 +1,7 @@
 {
   "name": "Calendario",
   "color": "rgba(255,59,48,1)",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Ora, data, meteo e impegni: 5 widget con pulsanti, schermata di blocco, Live Activity e Centro di Controllo",
   "localizedNames": null,
   "runInApp": false,
