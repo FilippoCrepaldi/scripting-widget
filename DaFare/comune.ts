@@ -108,8 +108,22 @@ export function quandoApp(a: Appuntamento) {
   return [g, a.ora].filter(Boolean).join(' ')
 }
 
-// ---------- vista del widget: "aperte" o "fatte", e pagina ----------
-export function vista(): string { return leggi("dafare-vista") === "fatte" ? "fatte" : "aperte" }
+// ---------- filtro del widget e pagina ----------
+// filtri: "tutte", un gruppo di tipi (riquadri in alto) oppure "fatte"
+export const GRUPPI: any[] = [
+  { k: 'urgenti',  nome: 'Urgenti',  tipi: ['urgente', 'magazzino'],      colore: { light: '#C62828', dark: '#FF6961' } },
+  { k: 'ordinare', nome: 'Ordinare', tipi: ['ordinare', 'ordini'],        colore: { light: '#6A3FB5', dark: '#BF9BFF' } },
+  { k: 'fare',     nome: 'Da fare',  tipi: ['rispondere', 'controllare'], colore: { light: '#0F5BB5', dark: '#64A8FF' } },
+  { k: 'seguire',  nome: 'Seguire',  tipi: ['seguire'],                   colore: { light: '#5B6675', dark: '#A1ABBA' } },
+]
+export function gruppoDi(v: Voce): string {
+  const t = tipoDi(v)
+  for (const g of GRUPPI) if (g.tipi.includes(t)) return g.k
+  return 'fare'
+}
+const FILTRI = ['tutte', 'urgenti', 'ordinare', 'fare', 'seguire', 'fatte']
+export function vista(): string { const v = leggi("dafare-vista") || 'tutte'; return FILTRI.includes(v) ? v : 'tutte' }
 export function pagina(): number { const n = parseInt(leggi("dafare-pagina") || "0", 10); return isNaN(n) ? 0 : n }
-export function scriviVista(v: string) { scrivi("dafare-vista", v); scrivi("dafare-pagina", "0") }
+// toccare il riquadro già scelto torna a "tutte"
+export function scriviVista(v: string) { scrivi("dafare-vista", vista() === v ? 'tutte' : v); scrivi("dafare-pagina", "0") }
 export function scriviPagina(n: number) { scrivi("dafare-pagina", String(Math.max(0, n))) }

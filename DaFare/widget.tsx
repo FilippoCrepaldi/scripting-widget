@@ -1,156 +1,189 @@
 // Widget "Da fare" – lista aggiornata dai riepiloghi del mattino e della sera
-// Medio e grande: schede "Da fare" / "Fatte" e frecce per scorrere tutta la lista.
-// Il cerchio spunta la voce; nelle "Fatte" la spunta verde la toglie.
+// In alto "3 di 16 fatte" con la barra a tacche; sotto i riquadri per tipo (sono filtri:
+// toccali per vedere solo quelle, ritoccali per tornare a tutte). Le fatte restano barrate
+// in fondo: tocca la spunta verde per toglierla.
 import { VStack, HStack, Text, Image, Spacer, Button, Widget, RoundedRectangle } from 'scripting'
 import { SegnaFatto, CambiaVista, CambiaPagina } from './app_intents'
-import { carica, fatti, pulisci, ordina, tipo, aperto, agg, quandoApp, urlDati, vista, pagina, APRI_LISTA, Dati, Voce } from './comune'
+import { carica, fatti, pulisci, ordina, tipo, gruppoDi, GRUPPI, urlDati, vista, pagina, APRI_LISTA, Dati, Voce } from './comune'
 
 const C: any = {
   sfondo: { light: '#FFFFFF', dark: '#1C1C1E' },
   blu: { light: '#0F3F7C', dark: '#8DBEF5' },
-  suBlu: { light: '#FFFFFF', dark: '#0A1626' },
-  chip: { light: '#EEF1F5', dark: '#2C2C2E' },
+  chip: { light: '#F1F4F8', dark: '#2C2C2E' },
   testo: { light: '#0A1626', dark: '#F1F5FB' },
   secondario: { light: '#3C4B61', dark: '#C0CCE0' },
   terziario: { light: '#6B7A90', dark: '#93A4BD' },
+  barrato: { light: '#93A4BD', dark: '#6B7A90' },
+  vuota: { light: '#E3E7ED', dark: '#3A3A3C' },
   spento: { light: '#C9D0DA', dark: '#48484A' },
-  linea: { light: '#E5E8EE', dark: '#38383A' },
   verde: { light: '#16784C', dark: '#30D158' },
   rosso: { light: '#C62828', dark: '#FF6961' },
+  bianco: { light: '#FFFFFF', dark: '#FFFFFF' },
 }
 
-// ---------- pezzi comuni ----------
-function Scheda({ nome, n, attiva, v }: { nome: string, n: number, attiva: boolean, v: string }) {
-  return <Button buttonStyle="plain" intent={CambiaVista({ vista: v })}>
-    <Text font={12} fontWeight="semibold" foregroundStyle={attiva ? C.suBlu : C.secondario}
-      padding={{ horizontal: 8, vertical: 3 }}
-      background={{ style: attiva ? C.blu : C.chip, shape: { type: 'rect', cornerRadius: 8 } } as any}>{`${nome} ${n}`}</Text>
-  </Button>
-}
+type Riga = { v: Voce, fatta: boolean }
 
-function Freccia({ verso, attiva }: { verso: number, attiva: boolean }) {
-  const icona = <Image systemName={verso < 0 ? 'chevron.left' : 'chevron.right'} font={13} fontWeight="bold"
-    foregroundStyle={attiva ? C.blu : C.spento} padding={{ horizontal: 6, vertical: 3 }}
-    background={{ style: C.chip, shape: { type: 'rect', cornerRadius: 8 } } as any} />
-  return attiva ? <Button buttonStyle="plain" intent={CambiaPagina({ delta: verso })}>{icona}</Button> : icona
-}
-
-function Comandi({ v, nAperte, nFatte, p, pagine }: any) {
-  return <HStack spacing={5}>
-    <Scheda nome="Da fare" n={nAperte} attiva={v === 'aperte'} v="aperte" />
-    <Scheda nome="Fatte" n={nFatte} attiva={v === 'fatte'} v="fatte" />
-    <Spacer />
-    {pagine > 1 ? <HStack spacing={4}>
-      <Freccia verso={-1} attiva={p > 0} />
-      <Text font={11} fontWeight="semibold" foregroundStyle={C.terziario}>{`${p + 1}/${pagine}`}</Text>
-      <Freccia verso={1} attiva={p < pagine - 1} />
-    </HStack> : null}
-  </HStack>
-}
-
-// una riga: a sinistra il tasto (cerchio = spunta, spunta verde = togli)
-function Riga({ v, fatta, dettaglio }: { v: Voce, fatta: boolean, dettaglio: boolean }) {
-  const t = tipo(v)
-  const etichetta = fatta ? 'Fatta · tocca la spunta per toglierla' : [t.nome, aperto(v.da)].filter(Boolean).join(' · ')
-  return <HStack spacing={8} alignment="top">
-    <Button buttonStyle="plain" intent={SegnaFatto({ id: v.id })}>
-      <Image systemName={fatta ? 'checkmark.circle.fill' : 'circle'} font={dettaglio ? 19 : 17} fontWeight="semibold"
-        foregroundStyle={fatta ? C.verde : t.colore} />
-    </Button>
-    <VStack alignment="leading" spacing={1}>
-      <Text font={dettaglio ? 14 : 13} fontWeight="medium" foregroundStyle={fatta ? C.terziario : C.testo} lineLimit={1}>{v.testo}</Text>
-      {dettaglio ? <Text font={11} fontWeight="medium" foregroundStyle={fatta ? C.terziario : t.colore} lineLimit={1}>{etichetta}</Text> : null}
-    </VStack>
-    <Spacer />
-  </HStack>
-}
-
-function Vuoto({ v, nTotale }: { v: string, nTotale: number }) {
-  const testo = v === 'fatte' ? 'Nessuna voce spuntata' : nTotale ? 'Tutto fatto' : 'Niente da fare'
-  return <VStack spacing={4} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
-    <Spacer />
-    <Image systemName={v === 'fatte' ? 'circle.dashed' : 'checkmark.circle.fill'} font={26} foregroundStyle={v === 'fatte' ? C.spento : C.verde} />
-    <Text font={14} fontWeight="semibold" foregroundStyle={C.testo}>{testo}</Text>
-    <Spacer />
-  </VStack>
-}
-
-// prepara le voci della scheda e della pagina scelte
-function sceltaPagina(d: Dati, perPagina: number) {
+// prepara tutto: conti, gruppi, elenco filtrato e pagina
+function prepara(d: Dati, perPagina: number) {
   pulisci(d)
   const f = fatti()
   const tutte = ordina(d.voci || [])
   const aperte = tutte.filter(v => !f[v.id])
   const chiuse = tutte.filter(v => f[v.id])
-  const v = vista()
-  const elenco = v === 'fatte' ? chiuse : aperte
+  const filtro = vista()
+  let elenco: Riga[]
+  if (filtro === 'fatte') elenco = chiuse.map(v => ({ v, fatta: true }))
+  else {
+    const dentro = (v: Voce) => filtro === 'tutte' || gruppoDi(v) === filtro
+    elenco = [...aperte.filter(dentro).map(v => ({ v, fatta: false })), ...chiuse.filter(dentro).map(v => ({ v, fatta: true }))]
+  }
   const pagine = Math.max(1, Math.ceil(elenco.length / perPagina))
   const p = Math.min(pagina(), pagine - 1)
-  return { v, aperte, chiuse, tutte, pagine, p, vis: elenco.slice(p * perPagina, (p + 1) * perPagina) }
+  const gruppi = GRUPPI.map(g => {
+    const voci = tutte.filter(v => gruppoDi(v) === g.k)
+    return { ...g, aperte: voci.filter(v => !f[v.id]).length, segni: voci.map(v => !!f[v.id]) }
+  })
+  return { tutte, aperte, chiuse, filtro, pagine, p, gruppi, vis: elenco.slice(p * perPagina, (p + 1) * perPagina) }
+}
+type S = ReturnType<typeof prepara>
+
+// ---------- pezzi ----------
+// barra a tacche: una tacca per voce, verde quando è fatta
+function Barra({ fatte, totale, altezza }: { fatte: number, totale: number, altezza: number }) {
+  const n = Math.max(1, totale)
+  return <HStack spacing={n > 20 ? 1.5 : 2.5}>
+    {Array.from({ length: n }, (_, i) =>
+      <RoundedRectangle cornerRadius={2} fill={i < fatte ? C.verde : C.vuota} frame={{ maxWidth: 'infinity', height: altezza }} />)}
+  </HStack>
+}
+
+function Freccia({ verso, attiva }: { verso: number, attiva: boolean }) {
+  const icona = <Image systemName={verso < 0 ? 'chevron.left' : 'chevron.right'} font={12} fontWeight="bold"
+    foregroundStyle={attiva ? C.blu : C.spento} padding={{ horizontal: 6, vertical: 4 }} />
+  return attiva ? <Button buttonStyle="plain" intent={CambiaPagina({ delta: verso })}>{icona}</Button> : icona
+}
+
+function Testa({ s, dopo, grande }: { s: S, dopo: string, grande: boolean }) {
+  return <HStack alignment="center" spacing={6}>
+    <Text font={grande ? 22 : 19} fontWeight="heavy" foregroundStyle={C.testo}>{`${s.chiuse.length} di ${s.tutte.length}`}</Text>
+    <Text font={12} fontWeight="medium" foregroundStyle={C.terziario} lineLimit={1}>{dopo}</Text>
+    <Spacer />
+    {s.pagine > 1
+      ? <HStack spacing={0} background={{ style: C.chip, shape: { type: 'rect', cornerRadius: 8 } } as any}>
+          <Freccia verso={-1} attiva={s.p > 0} />
+          <Text font={12} fontWeight="bold" foregroundStyle={C.blu}>{`${s.p + 1}/${s.pagine}`}</Text>
+          <Freccia verso={1} attiva={s.p < s.pagine - 1} />
+        </HStack>
+      : null}
+  </HStack>
+}
+
+// riquadro per tipo (è un tasto-filtro). Medio: nome sopra e numero sotto.
+// Grande: numero grande, nome e mini-barra (pieno = fatta).
+function Riquadro({ k, nome, n, colore, scelto, segni, grande }:
+  { k: string, nome: string, n: number, colore: any, scelto: boolean, segni: boolean[], grande: boolean }) {
+  const forte = scelto ? C.bianco : colore
+  const lieve = scelto ? C.bianco : C.terziario
+  return <Button buttonStyle="plain" intent={CambiaVista({ vista: k })}>
+    <VStack alignment="leading" spacing={grande ? 2 : 0} padding={{ horizontal: 6, vertical: grande ? 5 : 3 }}
+      frame={{ maxWidth: 'infinity', alignment: 'leading' }}
+      background={{ style: scelto ? colore : C.chip, shape: { type: 'rect', cornerRadius: 9 } } as any}>
+      {grande
+        ? <Text font={17} fontWeight="heavy" foregroundStyle={forte}>{String(n)}</Text>
+        : <Text font={10.5} fontWeight="semibold" foregroundStyle={forte} lineLimit={1} minScaleFactor={0.7}>{nome}</Text>}
+      {grande
+        ? <Text font={10} fontWeight="semibold" foregroundStyle={lieve} lineLimit={1} minScaleFactor={0.7}>{nome}</Text>
+        : <Text font={12} fontWeight="heavy" foregroundStyle={forte}>{String(n)}</Text>}
+      {grande
+        ? <HStack spacing={1.5}>
+            {(segni.length ? segni.slice(0, 12) : [false]).map(x =>
+              <RoundedRectangle cornerRadius={1} fill={x ? (scelto ? C.bianco : colore) : C.vuota}
+                frame={{ maxWidth: 'infinity', height: 3 }} />)}
+          </HStack>
+        : null}
+    </VStack>
+  </Button>
+}
+
+function Riquadri({ s, grande }: { s: S, grande: boolean }) {
+  return <HStack spacing={5}>
+    {s.gruppi.map(g => <Riquadro k={g.k} nome={g.nome} n={g.aperte} colore={g.colore}
+      scelto={s.filtro === g.k} segni={g.segni} grande={grande} />)}
+    <Riquadro k="fatte" nome="Fatte" n={s.chiuse.length} colore={C.verde}
+      scelto={s.filtro === 'fatte'} segni={s.chiuse.map(() => true)} grande={grande} />
+  </HStack>
+}
+
+// una riga: cerchio = spunta; le fatte hanno la spunta verde e sono barrate (tocca per togliere)
+function RigaVoce({ r }: { r: Riga }) {
+  const t = tipo(r.v)
+  return <HStack spacing={8}>
+    <Button buttonStyle="plain" intent={SegnaFatto({ id: r.v.id })}>
+      <Image systemName={r.fatta ? 'checkmark.circle.fill' : 'circle'} font={17} fontWeight="semibold"
+        foregroundStyle={r.fatta ? C.verde : t.colore} />
+    </Button>
+    {r.fatta
+      ? <Text font={13} fontWeight="semibold" foregroundStyle={C.barrato} strikethrough="systemGray" lineLimit={1}>{r.v.testo}</Text>
+      : <Text font={13} fontWeight="semibold" foregroundStyle={C.testo} lineLimit={1}>{r.v.testo}</Text>}
+    <Spacer />
+  </HStack>
+}
+
+function Elenco({ s, conTitolo }: { s: S, conTitolo: boolean }) {
+  if (!s.vis.length) {
+    const testo = s.filtro === 'fatte' ? 'Nessuna voce spuntata' : s.tutte.length ? 'Tutto fatto qui' : 'Niente da fare'
+    return <HStack spacing={6}>
+      <Image systemName={s.filtro === 'fatte' ? 'circle.dashed' : 'checkmark.circle.fill'} font={15}
+        foregroundStyle={s.filtro === 'fatte' ? C.spento : C.verde} />
+      <Text font={13} fontWeight="semibold" foregroundStyle={C.secondario}>{testo}</Text>
+    </HStack>
+  }
+  const righe: any[] = []
+  s.vis.forEach((r, i) => {
+    if (conTitolo && r.fatta && s.filtro !== 'fatte' && (i === 0 || !s.vis[i - 1].fatta))
+      righe.push(<Text font={10.5} fontWeight="bold" foregroundStyle={C.verde}>Fatte · tocca per togliere</Text>)
+    righe.push(<RigaVoce r={r} />)
+  })
+  return <VStack alignment="leading" spacing={5}>{righe}</VStack>
 }
 
 // ---------- misure ----------
 function Piccolo({ d }: { d: Dati }) {
   const f = fatti()
-  const aperte = ordina(d.voci || []).filter(v => !f[v.id])
-  const urgenti = aperte.filter(v => v.tipo === 'urgente' || v.tipo === 'magazzino').length
+  const tutte = ordina(d.voci || [])
+  const aperte = tutte.filter(v => !f[v.id])
   const prima = aperte[0]
-  return <VStack alignment="leading" spacing={2} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
-    <HStack spacing={5}>
-      <Image systemName="checklist" font={13} foregroundStyle={C.blu} />
-      <Text font={13} fontWeight="semibold" foregroundStyle={C.blu}>{d.fonte === 'sera' ? 'Domani' : 'Da fare'}</Text>
+  return <VStack alignment="leading" spacing={5} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
+    <HStack alignment="lastTextBaseline" spacing={4}>
+      <Text font={30} fontWeight="heavy" foregroundStyle={C.testo}>{String(tutte.length - aperte.length)}</Text>
+      <Text font={13} fontWeight="semibold" foregroundStyle={C.terziario}>{`di ${tutte.length} fatte`}</Text>
     </HStack>
-    <HStack alignment="lastTextBaseline" spacing={6}>
-      <Text font={40} fontWeight="heavy" foregroundStyle={aperte.length ? C.blu : C.verde}>{String(aperte.length)}</Text>
-      {urgenti ? <Text font={12} fontWeight="semibold" foregroundStyle={C.rosso}>{`${urgenti} urgenti`}</Text> : null}
-    </HStack>
+    <Barra fatte={tutte.length - aperte.length} totale={tutte.length} altezza={6} />
     <Spacer />
     {prima
-      ? <Text font={13} fontWeight="medium" foregroundStyle={C.testo} lineLimit={3}>{prima.testo}</Text>
-      : <Text font={13} fontWeight="medium" foregroundStyle={C.verde}>Tutto fatto</Text>}
+      ? <Text font={13} fontWeight="semibold" foregroundStyle={C.testo} lineLimit={3}>{prima.testo}</Text>
+      : <Text font={13} fontWeight="semibold" foregroundStyle={C.verde}>Tutto fatto</Text>}
   </VStack>
 }
 
 function Medio({ d }: { d: Dati }) {
-  const s = sceltaPagina(d, 4)
+  const s = prepara(d, 3)
   return <VStack alignment="leading" spacing={6} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
-    <Comandi v={s.v} nAperte={s.aperte.length} nFatte={s.chiuse.length} p={s.p} pagine={s.pagine} />
-    {s.vis.length
-      ? s.vis.map(v => <Riga v={v} fatta={s.v === 'fatte'} dettaglio={false} />)
-      : <Vuoto v={s.v} nTotale={s.tutte.length} />}
+    <Testa s={s} dopo={d.fonte === 'sera' ? 'fatte · domani' : 'fatte oggi'} grande={false} />
+    <Barra fatte={s.chiuse.length} totale={s.tutte.length} altezza={6} />
+    <Riquadri s={s} grande={false} />
+    <Elenco s={s} conTitolo={false} />
     <Spacer />
   </VStack>
 }
 
 function Grande({ d }: { d: Dati }) {
-  const app = (d.appuntamenti || []).slice(0, 2)
-  const conApp = vista() === 'aperte' && app.length > 0
-  const s = sceltaPagina(d, conApp ? 5 : 6)   // con gli appuntamenti c'è spazio per 5 righe
-  const vis = s.vis
-  const fonte = d.esempio ? 'esempio' : d.fonte === 'sera' ? 'sera' : 'mattino'
-  return <VStack alignment="leading" spacing={7} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
-    <HStack spacing={5}>
-      <Image systemName="checklist" font={13} foregroundStyle={C.blu} />
-      <Text font={13} fontWeight="semibold" foregroundStyle={C.blu}>{d.fonte === 'sera' ? 'Da fare domani' : 'Da fare oggi'}</Text>
-      <Spacer />
-      <Text font={11} fontWeight="medium" foregroundStyle={C.terziario}>{`${fonte} ${agg(d.aggiornato)}`}</Text>
-    </HStack>
-    <Comandi v={s.v} nAperte={s.aperte.length} nFatte={s.chiuse.length} p={s.p} pagine={s.pagine} />
-    {conApp && s.p === 0
-      ? <VStack alignment="leading" spacing={3}>
-          {app.map((a: any) =>
-            <HStack spacing={6}>
-              <Image systemName="calendar" font={12} foregroundStyle={C.blu} />
-              <Text font={12} fontWeight="semibold" foregroundStyle={C.blu}>{quandoApp(a)}</Text>
-              <Text font={12} foregroundStyle={C.secondario} lineLimit={1}>{a.testo}</Text>
-            </HStack>
-          )}
-          <RoundedRectangle fill={C.linea} frame={{ height: 0.5, maxWidth: 'infinity' }} />
-        </VStack>
-      : null}
-    {vis.length
-      ? vis.map(v => <Riga v={v} fatta={s.v === 'fatte'} dettaglio={true} />)
-      : <Vuoto v={s.v} nTotale={s.tutte.length} />}
+  const s = prepara(d, 9)
+  return <VStack alignment="leading" spacing={8} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
+    <Testa s={s} dopo={d.fonte === 'sera' ? 'fatte · domani' : 'fatte · oggi'} grande={true} />
+    <Barra fatte={s.chiuse.length} totale={s.tutte.length} altezza={7} />
+    <Riquadri s={s} grande={true} />
+    <Elenco s={s} conTitolo={true} />
     <Spacer />
   </VStack>
 }

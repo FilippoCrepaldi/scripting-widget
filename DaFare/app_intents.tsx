@@ -14,7 +14,7 @@ export const SegnaFatto = AppIntentManager.register({
   }
 })
 
-// passa da "Da fare" a "Fatte" e viceversa
+// sceglie il filtro (riquadro); se lo tocchi di nuovo torna a "tutte"
 export const CambiaVista = AppIntentManager.register({
   name: "CambiaVista",
   protocol: AppIntentProtocol.AppIntent,
