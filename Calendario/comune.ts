@@ -34,6 +34,9 @@ export function leggiStato(): Stato {
 export function salvaStato(s: Stato) {
   try { Storage.set(CHIAVE_STATO, JSON.stringify({ ...s, data: chiave(new Date()) }), { shared: true } as any) } catch (e) { }
 }
+// Quanti impegni mostra il widget: così le frecce si fermano all'ultimo
+export function salvaQuanti(n: number) { try { Storage.set('calendario-quanti', String(n), { shared: true } as any) } catch (e) { } }
+export function leggiQuanti(): number { try { const r = Storage.get<string>('calendario-quanti', { shared: true } as any); const n = parseInt(r || '', 10); return isNaN(n) ? 30 : n } catch (e) { return 30 } }
 // Storage scrive in background: si aspetta un attimo prima di ridisegnare il widget
 export const pausa = (ms: number) => new Promise(r => setTimeout(r, ms))
 
@@ -64,9 +67,9 @@ export async function eventiTra(da: Date, a: Date): Promise<Ev[] | null> {
     return l.map(conv).sort((x, y) => x.inizio - y.inizio)
   } catch (e) { return null }
 }
-export async function prossimi(n = 6): Promise<Ev[]> {
+export async function prossimi(n = 6, giorni = 8): Promise<Ev[]> {
   const ora = Date.now()
-  const l = await eventiTra(new Date(), inizioGiorno(new Date(), 8))
+  const l = await eventiTra(new Date(), inizioGiorno(new Date(), giorni))
   return (l || []).filter(e => e.fine > ora).slice(0, n) // anche quelli di tutto il giorno
 }
 

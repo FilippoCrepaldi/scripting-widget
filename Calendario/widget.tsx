@@ -6,7 +6,7 @@ import {
 } from 'scripting'
 import {
   GIORNI, GG, G1, MESI, MM, NOME_SCRIPT, inizioGiorno, hhmm, leggiStato,
-  eventiTra, prossimi, promemoria, meteo, type Ev, type Meteo, type Prom,
+  eventiTra, prossimi, promemoria, meteo, salvaQuanti, type Ev, type Meteo, type Prom,
 } from './comune'
 import { CambiaGiorno, CambiaEvento, ScegliGiorno, Completa } from './app_intents'
 
@@ -75,7 +75,7 @@ function DataPiccola({ giorno = 0, lunga = true }: { giorno?: number, lunga?: bo
   </HStack>
 }
 // Numero di versione piccolo accanto alla data: serve per controllare che il widget usi il codice nuovo (da togliere poi)
-const VERSIONE = 'v1.2.3'
+const VERSIONE = 'v1.2.4'
 // L'app Orologio non si può aprire direttamente da un widget: passa da un Comando Rapido "Apri Orologio" (azione "Apri app" → Orologio)
 const APRI_OROLOGIO = 'shortcuts://run-shortcut?name=' + encodeURIComponent('Apri Orologio')
 
@@ -108,7 +108,7 @@ function Barretta({ colore, alta = 26 }: { colore: string, alta?: number }) {
 function quando(e: Ev) {
   const d = new Date(e.inizio)
   const diff = Math.round((inizioGiorno(d).getTime() - mezzanotte.getTime()) / 86400000)
-  const g = diff === 0 ? '' : diff === 1 ? 'Domani ' : `${GG[d.getDay()]} `
+  const g = diff === 0 ? '' : diff === 1 ? 'Domani ' : diff < 7 ? `${GG[d.getDay()]} ` : `${GG[d.getDay()]} ${d.getDate()} ` // oltre una settimana anche il giorno del mese
   if (e.tuttoIlGiorno) return g ? g + 'tutto il giorno' : 'Tutto il giorno'
   return g + hhmm(d)
 }
@@ -469,7 +469,9 @@ async function disegna() {
   }
   if (fam === 'accessoryCircular') { Widget.present(<Circolare />, ricarica); return }
 
-  const [m, vicini] = await Promise.all([meteo(), prossimi(6)])
+  // le frecce scorrono fino a 30 impegni nei prossimi 60 giorni
+  const [m, vicini] = await Promise.all([meteo(), prossimi(30, 60)])
+  salvaQuanti(vicini.length)
   const prossimo = vicini[0] || null
   let corpo: any
 

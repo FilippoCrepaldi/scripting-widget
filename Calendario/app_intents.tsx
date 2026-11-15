@@ -1,7 +1,7 @@
 // app_intents.tsx – le azioni dei pulsanti (widget, Centro di Controllo)
 // I parametri sono sempre oggetti ({ delta: 1 }): con un numero semplice l'azione non partiva dal widget.
 import { AppIntentManager, AppIntentProtocol, Widget, ControlWidget } from 'scripting'
-import { leggiStato, salvaStato, pausa } from './comune'
+import { leggiStato, salvaStato, pausa, leggiQuanti } from './comune'
 // Nota: qui NON si importa live_activity.tsx (il widget importa questo file e la Live Activity va avviata dall'app)
 
 // ‹ › cambia giorno (0 = torna a oggi)
@@ -23,7 +23,7 @@ export const CambiaEvento = AppIntentManager.register({
   protocol: AppIntentProtocol.AppIntent,
   perform: async ({ delta }: { delta: number }) => {
     const s = leggiStato()
-    s.evento = Math.max(0, Math.min(5, s.evento + delta))
+    s.evento = Math.max(0, Math.min(leggiQuanti() - 1, s.evento + delta)) // si ferma all'ultimo impegno
     salvaStato(s)
     await pausa(500)
     Widget.reloadAll(); try { (Widget as any).reloadUserWidgets?.() } catch (e) { }
