@@ -43,7 +43,7 @@ function Ora({ size }: { size: number }) {
 // Mostra solo un pezzo del timer che parte da mezzanotte: l'inizio (HH:MM) o la fine (SS).
 // Larghezze in proporzione alla dimensione del carattere: "HH:MM" misura circa 2,74 volte, una cifra circa 0,62.
 // Si lascia un piccolo margine dopo l'ultima cifra: lì i ":" dei secondi sono ancora vuoti.
-const ORAMIN = 2.78, CIFRA = 0.62
+const ORAMIN = 2.85, CIFRA = 0.62 // misurate sull'iPhone
 function Ritaglio({ size, inizio, colore, peso }: { size: number, inizio: boolean, colore: string, peso: string }) {
   const larghezza = inizio ? size * (ORAMIN - (ora.getHours() < 10 ? CIFRA : 0)) : size * 2 * CIFRA + 1
   return <HStack frame={{ width: larghezza, height: size * 1.2, alignment: inizio ? 'leading' : 'trailing' }} clipped>
