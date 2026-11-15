@@ -40,18 +40,19 @@ function Ora({ size }: { size: number }) {
 
 // Ore e minuti grandi, secondi sotto. L'ora che va avanti da sola è un unico testo "12:09:41":
 // lo mostro due volte e lo "ritaglio", una volta tenendo solo ore e minuti, una volta solo i secondi.
-const CIFRA = 0.61, DUEPUNTI = 0.27 // larghezza di una cifra e dei due punti rispetto alla dimensione del carattere
-function Ritaglio({ size, larghezza, sposta, colore, peso }: { size: number, larghezza: number, sposta: number, colore: string, peso: string }) {
-  return <HStack frame={{ width: larghezza, height: size * 1.2, alignment: 'trailing' }} clipped>
+const CIFRA = 0.61, ORAMIN = 2.56 // larghezza di una cifra e di "HH:MM" rispetto alla dimensione del carattere (misurate sul Mac)
+// Mostra solo un pezzo del timer che parte da mezzanotte: l'inizio (HH:MM) o la fine (SS)
+function Ritaglio({ size, larghezza, inizio, colore, peso }: { size: number, larghezza: number, inizio: boolean, colore: string, peso: string }) {
+  return <HStack frame={{ width: larghezza, height: size * 1.2, alignment: inizio ? 'leading' : 'trailing' }} clipped>
     <DateLabel date={mezzanotte} style="timer" font={size} fontWeight={peso as any} monospacedDigit
-      foregroundStyle={colore} lineLimit={1} fixedSize multilineTextAlignment="trailing" offset={{ x: sposta, y: 0 }} />
+      foregroundStyle={colore} lineLimit={1} fixedSize multilineTextAlignment={inizio ? 'leading' : 'trailing'} />
   </HStack>
 }
 function OraESecondi({ size, sec }: { size: number, sec: number }) {
   return <VStack alignment="leading" spacing={0}>
-    <Ritaglio size={size} larghezza={size * (4 * CIFRA + DUEPUNTI) + 2} sposta={size * (2 * CIFRA + DUEPUNTI)} colore={C.testo} peso="bold" />
+    <Ritaglio size={size} larghezza={size * ORAMIN} inizio colore={C.testo} peso="bold" />
     <HStack spacing={4} alignment="lastTextBaseline">
-      <Ritaglio size={sec} larghezza={sec * 2 * CIFRA + 1} sposta={0} colore={C.rosso} peso="semibold" />
+      <Ritaglio size={sec} larghezza={sec * 2 * CIFRA + 1} inizio={false} colore={C.rosso} peso="semibold" />
       <Text font={sec * 0.6} fontWeight="semibold" foregroundStyle={C.tenue}>sec</Text>
     </HStack>
   </VStack>
