@@ -71,11 +71,8 @@ function DataPiccola({ giorno = 0, lunga = true }: { giorno?: number, lunga?: bo
   return <HStack spacing={4}>
     <Text font={12} fontWeight="bold" foregroundStyle={C.rosso}>{nome.toUpperCase()}</Text>
     <Text font={12} fontWeight="semibold" foregroundStyle={C.tenue}>{`${d.getDate()} ${lunga ? MESI[d.getMonth()] : MM[d.getMonth()]}`}</Text>
-    <Text font={8} foregroundStyle={C.debole}>{VERSIONE}</Text>
   </HStack>
 }
-// Numero di versione piccolo accanto alla data: serve per controllare che il widget usi il codice nuovo (da togliere poi)
-const VERSIONE = 'v1.2.5'
 // L'app Orologio non si può aprire direttamente da un widget: passa da un Comando Rapido "Apri Orologio" (azione "Apri app" → Orologio)
 const APRI_OROLOGIO = 'shortcuts://run-shortcut?name=' + encodeURIComponent('Apri Orologio')
 
