@@ -1,5 +1,5 @@
 // index.tsx – si apre premendo ▶ in Scripting, oppure dal "+" del widget
-import { Script, Widget, CalendarEvent, Reminder, Dialog } from 'scripting'
+import { Script, Widget } from 'scripting'
 import { aggiornaPosizione, calendarioPreferito, inizioGiorno, conLimite, prossimi, GG } from './comune'
 import { ProssimoImpegno } from './live_activity'
 

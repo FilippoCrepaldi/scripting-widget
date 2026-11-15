@@ -1,5 +1,5 @@
 // app_intents.tsx – le azioni dei pulsanti (widget, Centro di Controllo)
-import { AppIntentManager, AppIntentProtocol, Widget, ControlWidget, Storage, Reminder } from 'scripting'
+import { AppIntentManager, AppIntentProtocol, Widget, ControlWidget } from 'scripting'
 import { leggiStato, salvaStato } from './comune'
 // Nota: qui NON si importa live_activity.tsx (il widget importa questo file e la Live Activity va avviata dall'app)
 

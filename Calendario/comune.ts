@@ -1,5 +1,5 @@
 // comune.tsx – dati condivisi tra widget, pulsanti, Live Activity e app
-import { Storage, CalendarEvent, Calendar, Reminder, Weather, Location } from 'scripting'
+// Storage, CalendarEvent, Calendar, Reminder, Weather e Location sono globali in Scripting (non si importano)
 
 export const NOME_SCRIPT = 'Calendario'
 export const CALENDARIO_PREFERITO = 'Calendario' // il calendario verde che vedi anche su Outlook
