@@ -41,6 +41,17 @@ async function main() {
     return
   }
 
+  if (q.azione === 'apri' && q.id) {
+    try { await (Script as any).requestAccess(['calendar']) } catch (e) { }
+    try {
+      const ev: any = await CalendarEvent.get(q.id)
+      if (ev) { await ev.presentEditView(); Widget.reloadAll(); try { (Widget as any).reloadUserWidgets?.() } catch (e) { } }
+      else await Dialog.alert({ title: 'Calendario', message: 'Impegno non trovato' })
+    } catch (e) { await Dialog.alert({ title: 'Apri impegno', message: String(e) }) }
+    Script.exit()
+    return
+  }
+
   if (q.azione === 'segui') {
     try { await (Script as any).requestAccess(['calendar']) } catch (e) { }
     try { await segui() } catch (e) { await Dialog.alert({ title: 'Conto alla rovescia', message: String(e) }) }

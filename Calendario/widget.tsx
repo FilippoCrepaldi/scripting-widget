@@ -75,7 +75,7 @@ function DataPiccola({ giorno = 0, lunga = true }: { giorno?: number, lunga?: bo
   </HStack>
 }
 // Numero di versione piccolo accanto alla data: serve per controllare che il widget usi il codice nuovo (da togliere poi)
-const VERSIONE = 'v1.2.1'
+const VERSIONE = 'v1.2.2'
 // L'app Orologio non si può aprire direttamente da un widget: passa da un Comando Rapido "Apri Orologio" (azione "Apri app" → Orologio)
 const APRI_OROLOGIO = 'shortcuts://run-shortcut?name=' + encodeURIComponent('Apri Orologio')
 
@@ -113,7 +113,11 @@ function quando(e: Ev) {
   return g + hhmm(d)
 }
 // Apre il Calendario dell'iPhone sul giorno e sull'ora dell'impegno
-function apriImpegno(e: Ev) { return `calshow:${Math.floor(e.inizio / 1000 - 978307200)}` }
+// Apre proprio quell'impegno: Scripting lo cerca e mostra la sua scheda (se manca l'id, apre il Calendario su quel giorno)
+function apriImpegno(e: Ev) {
+  if (e.id) return `scripting://run_single/${encodeURIComponent(NOME_SCRIPT)}?azione=apri&id=${encodeURIComponent(e.id)}`
+  return `calshow:${Math.floor(e.inizio / 1000 - 978307200)}`
+}
 function mancano(e: Ev) {
   const min = Math.max(0, Math.round((e.inizio - Date.now()) / 60000))
   if (e.inizio <= Date.now()) return 'In corso'
