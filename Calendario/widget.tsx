@@ -75,7 +75,7 @@ function DataPiccola({ giorno = 0, lunga = true }: { giorno?: number, lunga?: bo
   </HStack>
 }
 // Numero di versione piccolo accanto alla data: serve per controllare che il widget usi il codice nuovo (da togliere poi)
-const VERSIONE = 'v1.2.4'
+const VERSIONE = 'v1.2.5'
 // L'app Orologio non si può aprire direttamente da un widget: passa da un Comando Rapido "Apri Orologio" (azione "Apri app" → Orologio)
 const APRI_OROLOGIO = 'shortcuts://run-shortcut?name=' + encodeURIComponent('Apri Orologio')
 
@@ -89,9 +89,10 @@ function Pulsante({ icona, intent, rosso = false, size = 26, chiaro = false }: a
   return <Button buttonStyle="plain" intent={intent}><Tondo icona={icona} rosso={rosso} size={size} chiaro={chiaro} /></Button>
 }
 // "+" apre l'app con la scheda nuovo evento già sul giorno scelto
-// 🔔 apre l'app per un attimo e avvia il conto alla rovescia del prossimo impegno
-function Segui({ size = 22 }: { size?: number }) {
-  return <Link url={`scripting://run_single/${encodeURIComponent(NOME_SCRIPT)}?azione=segui`}>
+// 🔔 avvia il conto alla rovescia dell'impegno scelto (se non c'è, del prossimo)
+function Segui({ size = 22, e = null }: { size?: number, e?: Ev | null }) {
+  const extra = e && e.id ? `&id=${encodeURIComponent(e.id)}&inizio=${e.inizio}` : ''
+  return <Link url={`scripting://run_single/${encodeURIComponent(NOME_SCRIPT)}?azione=segui${extra}`}>
     <Tondo icona="bell.badge" size={size} chiaro />
   </Link>
 }
@@ -173,7 +174,7 @@ function ContoAllaRovescia({ m, lista, indice }: { m: Meteo | null, lista: Ev[],
   // Lista dei prossimi impegni: ne mostra 3, e la finestra segue quello scelto con le frecce
   const RIGA = 30
   const sel = Math.min(indice, Math.max(0, lista.length - 1))
-  const inizioFin = Math.max(0, Math.min(sel, lista.length - 3)) // la lista scorre: quello scelto sta in cima
+  const inizioFin = Math.floor(sel / 3) * 3 // pagine da 3: superato il terzo si gira pagina
   const finestra = lista.slice(inizioFin, inizioFin + 3)
   return <HStack spacing={12} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
     <VStack alignment="leading" spacing={0} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
@@ -220,11 +221,11 @@ function ContoAllaRovescia({ m, lista, indice }: { m: Meteo | null, lista: Ev[],
         <Rectangle fill={C.linea} frame={{ height: 0.5, maxWidth: 'infinity' }} />
         <HStack spacing={0} padding={{ top: 5 }}>
           <Spacer />
-          <Pulsante icona="chevron.left" intent={CambiaEvento({ delta: -1 })} size={22} chiaro />
+          <Pulsante icona="chevron.up" intent={CambiaEvento({ delta: -1 })} size={22} chiaro />
           <Spacer />
-          <Segui size={22} />
+          <Segui size={22} e={lista[sel] || null} />
           <Spacer />
-          <Pulsante icona="chevron.right" intent={CambiaEvento({ delta: 1 })} size={22} chiaro />
+          <Pulsante icona="chevron.down" intent={CambiaEvento({ delta: 1 })} size={22} chiaro />
           <Spacer />
         </HStack>
       </VStack>

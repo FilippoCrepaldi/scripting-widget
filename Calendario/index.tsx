@@ -20,8 +20,11 @@ async function nuovoEvento(giorno: number) {
 }
 
 // Avvia il conto alla rovescia del prossimo impegno (schermata di blocco e Dynamic Island)
-async function segui() {
-  const [e] = await prossimi(1)
+async function segui(id?: string, inizio?: string) {
+  // l'impegno scelto nel widget (stesso id e stessa ora d'inizio), altrimenti il prossimo
+  const lista = await prossimi(30, 60)
+  const t = inizio ? parseInt(inizio, 10) : NaN
+  const e = (id ? (lista.find(x => x.id === id && x.inizio === t) || lista.find(x => x.id === id)) : null) || lista[0]
   if (!e) { await Dialog.alert({ title: 'Calendario', message: 'Nessun impegno in vista' }); return }
   const d = new Date(e.inizio)
   const ok = await ProssimoImpegno().start(
@@ -54,7 +57,7 @@ async function main() {
 
   if (q.azione === 'segui') {
     try { await (Script as any).requestAccess(['calendar']) } catch (e) { }
-    try { await segui() } catch (e) { await Dialog.alert({ title: 'Conto alla rovescia', message: String(e) }) }
+    try { await segui(q.id, q.inizio) } catch (e) { await Dialog.alert({ title: 'Conto alla rovescia', message: String(e) }) }
     Script.exit()
     return
   }
