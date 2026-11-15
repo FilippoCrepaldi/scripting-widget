@@ -1,0 +1,110 @@
+// comune.tsx – dati condivisi tra widget, pulsanti, Live Activity e app
+import { Storage, CalendarEvent, Calendar, Reminder, Weather, Location } from 'scripting'
+
+export const NOME_SCRIPT = 'Calendario'
+export const CALENDARIO_PREFERITO = 'Calendario' // il calendario verde che vedi anche su Outlook
+
+export const GIORNI = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato']
+export const GG = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab']
+export const G1 = ['D', 'L', 'M', 'M', 'G', 'V', 'S']
+export const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
+export const MM = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic']
+
+export function inizioGiorno(d: Date, piu = 0) { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() + piu); return x }
+export function chiave(d: Date) { return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}` }
+export function hhmm(d: Date) { return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
+
+// ---------- stato dei pulsanti (giorno scelto, impegno scelto, vista) ----------
+export type Stato = { data: string, giorno: number, evento: number, sel: number }
+export function leggiStato(): Stato {
+  const oggi = chiave(new Date())
+  const s = Storage.get<Stato>('stato')
+  if (!s || s.data !== oggi) return { data: oggi, giorno: 0, evento: 0, sel: 0 } // ogni giorno si riparte da oggi
+  return s
+}
+export function salvaStato(s: Stato) { Storage.set('stato', { ...s, data: chiave(new Date()) }) }
+
+// ---------- eventi ----------
+export type Ev = { id: string, titolo: string, inizio: number, fine: number, tuttoIlGiorno: boolean, luogo: string, colore: string }
+function colore(e: any) { const c = e?.calendar?.color; return typeof c === 'string' && c.length ? c : 'systemRed' }
+function conv(e: any): Ev {
+  return {
+    id: e.identifier || '', titolo: e.title || 'Evento', inizio: new Date(e.startDate).getTime(), fine: new Date(e.endDate).getTime(),
+    tuttoIlGiorno: !!e.isAllDay, luogo: e.location || '', colore: colore(e),
+  }
+}
+export async function eventiTra(da: Date, a: Date): Promise<Ev[] | null> {
+  try {
+    const l: any[] = await CalendarEvent.getAll(da, a)
+    return l.map(conv).sort((x, y) => x.inizio - y.inizio)
+  } catch (e) { return null }
+}
+export async function prossimi(n = 6): Promise<Ev[]> {
+  const ora = Date.now()
+  const l = await eventiTra(new Date(), inizioGiorno(new Date(), 8))
+  return (l || []).filter(e => !e.tuttoIlGiorno && e.fine > ora).slice(0, n)
+}
+
+// ---------- promemoria ----------
+export type Prom = { id: string, titolo: string, fatto: boolean }
+export async function promemoria(n = 3): Promise<Prom[]> {
+  try {
+    const l: any[] = await Reminder.getIncompletes({ endDate: inizioGiorno(new Date(), 1) })
+    return l.slice(0, n).map(r => ({ id: r.identifier, titolo: r.title, fatto: !!r.isCompleted }))
+  } catch (e) { return [] }
+}
+
+// ---------- meteo (tenuto in memoria 30 minuti) ----------
+export type Meteo = { temp: number, icona: string, testo: string, max: number, min: number,
+  ore: { h: number, t: number, icona: string }[], giorni: { k: string, max: number, min: number, icona: string }[] }
+const COND: Record<string, string> = {
+  clear: 'Sereno', mostlyClear: 'Quasi sereno', partlyCloudy: 'Poco nuvoloso', mostlyCloudy: 'Nuvoloso', cloudy: 'Coperto',
+  rain: 'Pioggia', drizzle: 'Pioviggine', heavyRain: 'Pioggia forte', foggy: 'Nebbia', haze: 'Foschia', windy: 'Vento',
+  snow: 'Neve', thunderstorms: 'Temporali', scatteredThunderstorms: 'Temporali sparsi', sleet: 'Nevischio', breezy: 'Ventilato',
+}
+function num(x: any): number {
+  if (typeof x === 'number') return x
+  if (x && typeof x.value === 'number') return x.value
+  const f = parseFloat(String(x?.formatted ?? x ?? '').replace(',', '.'))
+  return isNaN(f) ? 0 : f
+}
+export async function meteo(): Promise<Meteo | null> {
+  const cache = Storage.get<{ t: number, m: Meteo }>('meteo')
+  if (cache && Date.now() - cache.t < 30 * 60 * 1000) return cache.m
+  try {
+    const pos = Storage.get<{ latitude: number, longitude: number }>('posizione')
+    if (!pos) return null // la posizione si salva aprendo lo script (▶)
+    const loc: any = { latitude: pos.latitude, longitude: pos.longitude, timestamp: Date.now() }
+    const ora = new Date()
+    const [c, h, d]: any[] = await Promise.all([
+      Weather.requestCurrent(loc),
+      Weather.requestHourlyForecast(loc, { startDate: inizioGiorno(ora), endDate: inizioGiorno(ora, 1) }),
+      Weather.requestDailyForecast(loc, { startDate: inizioGiorno(ora, -6), endDate: inizioGiorno(ora, 8) }),
+    ])
+    const giorni = (d?.forecast || []).map((x: any) => ({ k: chiave(new Date(x.date)), max: Math.round(num(x.highTemperature)), min: Math.round(num(x.lowTemperature)), icona: x.symbolName || 'cloud' }))
+    const oggi = giorni.find((g: any) => g.k === chiave(ora))
+    const m: Meteo = {
+      temp: Math.round(num(c.temperature)), icona: c.symbolName || 'cloud', testo: COND[c.condition] || '',
+      max: oggi ? oggi.max : Math.round(num(c.temperature)), min: oggi ? oggi.min : Math.round(num(c.temperature)),
+      ore: (h?.forecast || []).map((x: any) => ({ h: new Date(x.date).getHours(), t: Math.round(num(x.temperature)), icona: x.symbolName || 'cloud' })),
+      giorni,
+    }
+    Storage.set('meteo', { t: Date.now(), m })
+    return m
+  } catch (e) { return cache ? cache.m : null }
+}
+
+// Chiamata dall'app: salva la posizione per il meteo
+export async function aggiornaPosizione() {
+  try {
+    const p = await Location.requestCurrent({ forceRequest: true })
+    if (p) { Storage.set('posizione', { latitude: p.latitude, longitude: p.longitude }); Storage.remove('meteo') }
+  } catch (e) { }
+}
+
+export async function calendarioPreferito(): Promise<any> {
+  try {
+    const l: any[] = await Calendar.forEvents()
+    return l.find(c => c.title === CALENDARIO_PREFERITO && c.allowsContentModifications) || await Calendar.defaultForEvents()
+  } catch (e) { return null }
+}
