@@ -90,7 +90,7 @@ function Pulsante({ icona, intent, rosso = false, size = 26, chiaro = false }: a
 function Segui({ size = 22, e = null }: { size?: number, e?: Ev | null }) {
   const extra = e && e.id ? `&id=${encodeURIComponent(e.id)}&inizio=${e.inizio}` : ''
   return <Link url={`scripting://run_single/${encodeURIComponent(NOME_SCRIPT)}?azione=segui${extra}`}>
-    <Tondo icona="bell.badge" size={size} chiaro />
+    <Tondo icona="bell.badge" size={size} />
   </Link>
 }
 function Nuovo({ giorno = 0, size = 26 }: { giorno?: number, size?: number }) {
@@ -169,7 +169,7 @@ function OraGigante({ m, prossimo }: { m: Meteo | null, prossimo: Ev | null }) {
 const maiuscola = (t: string) => t ? t.charAt(0).toUpperCase() + t.slice(1) : t
 function ContoAllaRovescia({ m, lista, indice }: { m: Meteo | null, lista: Ev[], indice: number }) {
   // Lista dei prossimi impegni: ne mostra 3, e la finestra segue quello scelto con le frecce
-  const RIGA = 30
+  const RIGA = 32
   const sel = Math.min(indice, Math.max(0, lista.length - 1))
   const inizioFin = Math.floor(sel / 3) * 3 // pagine da 3: superato il terzo si gira pagina
   const finestra = lista.slice(inizioFin, inizioFin + 3)
@@ -200,43 +200,39 @@ function ContoAllaRovescia({ m, lista, indice }: { m: Meteo | null, lista: Ev[],
         </HStack>
       </HStack></Link> : null}
     </VStack>
-    <ZStack frame={{ width: 148, maxHeight: 'infinity' }}>
-      <RoundedRectangle fill={C.riquadro} cornerRadius={16} />
-      <VStack spacing={0} padding={6} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
-        {/* 3 righe sempre della stessa altezza: quella scelta con le frecce è evidenziata */}
-        <VStack spacing={3}>
-          {[0, 1, 2].map(k => {
-            const r = finestra[k]
-            if (!r) return <HStack frame={{ maxWidth: 'infinity', height: RIGA }}>{k === 0 && !lista.length ? <Text font={11} foregroundStyle={C.tenue}>Niente in vista</Text> : <Spacer />}</HStack>
-            const scelto = inizioFin + k === sel
-            return <Link url={apriImpegno(r)}>
-              <ZStack frame={{ maxWidth: 'infinity', height: RIGA }}>
-                <RoundedRectangle fill={scelto ? r.colore : 'clear'} cornerRadius={8} />
-                <HStack spacing={5} padding={{ leading: 5, trailing: 4 }}>
-                  <RoundedRectangle fill={scelto ? 'white' : r.colore} cornerRadius={1.5} frame={{ width: 3, height: RIGA - 10 }} />
-                  <VStack alignment="leading" spacing={0} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
-                    <Text font={11} fontWeight="semibold" foregroundStyle={scelto ? 'white' : C.testo} lineLimit={1}>{maiuscola(r.titolo)}</Text>
-                    <Text font={10} foregroundStyle={scelto ? 'white' : C.tenue} lineLimit={1}>{quando(r)}</Text>
-                  </VStack>
-                </HStack>
-              </ZStack>
-            </Link>
-          })}
+    {/* impegni senza riquadro: "PROSSIMI", righe divise da linee sottili, tasti piccoli in basso a destra */}
+    <VStack alignment="leading" spacing={0} frame={{ width: 150, maxHeight: 'infinity', alignment: 'topLeading' }}>
+      <Text font={10} fontWeight="bold" foregroundStyle={(lista[sel] && lista[sel].colore) || C.rosso} padding={{ bottom: 3 }}>PROSSIMI</Text>
+      {[0, 1, 2].map(k => {
+        const r = finestra[k]
+        if (!r) return <VStack spacing={0} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
+          <Rectangle fill={C.linea} frame={{ maxWidth: 'infinity', minHeight: 0.5, maxHeight: 0.5 }} />
+          <HStack frame={{ maxWidth: 'infinity', minHeight: RIGA, maxHeight: RIGA, alignment: 'leading' }}>
+            {k === 0 && !lista.length ? <Text font={11} foregroundStyle={C.tenue}>Niente in vista</Text> : <Spacer />}
+          </HStack>
         </VStack>
+        const scelto = inizioFin + k === sel
+        return <Link url={apriImpegno(r)}>
+          <VStack spacing={0} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
+            <Rectangle fill={C.linea} frame={{ maxWidth: 'infinity', minHeight: 0.5, maxHeight: 0.5 }} />
+            <HStack spacing={6} frame={{ maxWidth: 'infinity', minHeight: RIGA, maxHeight: RIGA, alignment: 'leading' }}>
+              <RoundedRectangle fill={scelto ? r.colore : 'systemGray3'} cornerRadius={1.5} frame={{ width: 3, height: RIGA - 8 }} />
+              <VStack alignment="leading" spacing={0} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
+                <Text font={11} fontWeight={scelto ? 'bold' : 'medium'} foregroundStyle={C.testo} lineLimit={1}>{maiuscola(r.titolo)}</Text>
+                <Text font={9} fontWeight={scelto ? 'semibold' : 'regular'} foregroundStyle={scelto ? r.colore : C.tenue} lineLimit={1}>{quando(r)}</Text>
+              </VStack>
+            </HStack>
+          </VStack>
+        </Link>
+      })}
+      <Spacer />
+      <HStack spacing={6}>
         <Spacer />
-        {/* tasti separati dagli impegni da una linea sottile */}
-        <Rectangle fill={C.linea} frame={{ height: 0.5, maxWidth: 'infinity' }} />
-        <HStack spacing={0} padding={{ top: 5 }}>
-          <Spacer />
-          <Pulsante icona="chevron.up" intent={CambiaEvento({ delta: -1 })} size={22} chiaro />
-          <Spacer />
-          <Segui size={22} e={lista[sel] || null} />
-          <Spacer />
-          <Pulsante icona="chevron.down" intent={CambiaEvento({ delta: 1 })} size={22} chiaro />
-          <Spacer />
-        </HStack>
-      </VStack>
-    </ZStack>
+        <Pulsante icona="chevron.up" intent={CambiaEvento({ delta: -1 })} size={20} />
+        <Segui size={20} e={lista[sel] || null} />
+        <Pulsante icona="chevron.down" intent={CambiaEvento({ delta: 1 })} size={20} />
+      </HStack>
+    </VStack>
   </HStack>
 }
 
