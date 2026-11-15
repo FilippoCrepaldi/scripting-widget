@@ -2,7 +2,7 @@
 // Parametro del widget: 1 Ora gigante · 2 Conto alla rovescia · 3 Striscia · 4 Cruscotto · 5 Settimana
 import {
   VStack, HStack, ZStack, Text, Image, Spacer, DateLabel, Button, Link, Gauge,
-  RoundedRectangle, Circle, Widget,
+  RoundedRectangle, Rectangle, Circle, Widget,
 } from 'scripting'
 import {
   GIORNI, GG, G1, MESI, MM, NOME_SCRIPT, inizioGiorno, hhmm, leggiStato,
@@ -75,24 +75,24 @@ function DataPiccola({ giorno = 0, lunga = true }: { giorno?: number, lunga?: bo
   </HStack>
 }
 // Numero di versione piccolo accanto alla data: serve per controllare che il widget usi il codice nuovo (da togliere poi)
-const VERSIONE = 'v1.1.9'
+const VERSIONE = 'v1.2.1'
 // L'app Orologio non si può aprire direttamente da un widget: passa da un Comando Rapido "Apri Orologio" (azione "Apri app" → Orologio)
 const APRI_OROLOGIO = 'shortcuts://run-shortcut?name=' + encodeURIComponent('Apri Orologio')
 
-function Tondo({ icona, rosso = false, size = 26 }: { icona: string, rosso?: boolean, size?: number }) {
+function Tondo({ icona, rosso = false, size = 26, chiaro = false }: { icona: string, rosso?: boolean, size?: number, chiaro?: boolean }) {
   return <ZStack frame={{ width: size, height: size }}>
-    <Circle fill={rosso ? C.rosso : C.riquadro} frame={{ width: size, height: size }} />
+    <Circle fill={rosso ? C.rosso : chiaro ? 'systemBackground' : C.riquadro} frame={{ width: size, height: size }} />
     <Image systemName={icona} font={size * 0.46} fontWeight="bold" foregroundStyle={rosso ? 'white' : C.testo} />
   </ZStack>
 }
-function Pulsante({ icona, intent, rosso = false, size = 26 }: any) {
-  return <Button buttonStyle="plain" intent={intent}><Tondo icona={icona} rosso={rosso} size={size} /></Button>
+function Pulsante({ icona, intent, rosso = false, size = 26, chiaro = false }: any) {
+  return <Button buttonStyle="plain" intent={intent}><Tondo icona={icona} rosso={rosso} size={size} chiaro={chiaro} /></Button>
 }
 // "+" apre l'app con la scheda nuovo evento già sul giorno scelto
 // 🔔 apre l'app per un attimo e avvia il conto alla rovescia del prossimo impegno
 function Segui({ size = 22 }: { size?: number }) {
   return <Link url={`scripting://run_single/${encodeURIComponent(NOME_SCRIPT)}?azione=segui`}>
-    <Tondo icona="bell.badge" size={size} />
+    <Tondo icona="bell.badge" size={size} chiaro />
   </Link>
 }
 function Nuovo({ giorno = 0, size = 26 }: { giorno?: number, size?: number }) {
@@ -164,10 +164,13 @@ function OraGigante({ m, prossimo }: { m: Meteo | null, prossimo: Ev | null }) {
 }
 
 // ---------- 2. Ora, meteo e conto alla rovescia (media) ----------
+const maiuscola = (t: string) => t ? t.charAt(0).toUpperCase() + t.slice(1) : t
 function ContoAllaRovescia({ m, lista, indice }: { m: Meteo | null, lista: Ev[], indice: number }) {
-  const e = lista[Math.min(indice, Math.max(0, lista.length - 1))] || null
-  const minuti = e ? Math.max(0, (e.inizio - Date.now()) / 60000) : 0
-  const pieno = e ? (e.inizio <= Date.now() ? 1 : Math.max(0.03, 1 - minuti / 240)) : 0 // l'anello si riempie nelle ultime 4 ore
+  // Lista dei prossimi impegni: ne mostra 3, e la finestra segue quello scelto con le frecce
+  const RIGA = 30
+  const sel = Math.min(indice, Math.max(0, lista.length - 1))
+  const inizioFin = Math.max(0, Math.min(sel - 1, lista.length - 3))
+  const finestra = lista.slice(inizioFin, inizioFin + 3)
   return <HStack spacing={12} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
     <VStack alignment="leading" spacing={0} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
       <Link url={APRI_OROLOGIO}>
@@ -185,21 +188,40 @@ function ContoAllaRovescia({ m, lista, indice }: { m: Meteo | null, lista: Ev[],
         </VStack>
       </HStack></Link> : null}
     </VStack>
-    <ZStack frame={{ width: 124, maxHeight: 'infinity' }}>
+    <ZStack frame={{ width: 148, maxHeight: 'infinity' }}>
       <RoundedRectangle fill={C.riquadro} cornerRadius={16} />
-      <VStack spacing={3} padding={8}>
-        <Link url={e ? apriImpegno(e) : 'calshow://'}><VStack spacing={3}>
-        {e ? <Gauge value={pieno} min={0} max={1} gaugeStyle="accessoryCircularCapacity" tint={e.colore}
-          label={<Text>Prossimo</Text>}
-          currentValueLabel={<Text font={11} fontWeight="bold" foregroundStyle={C.testo}>{mancano(e)}</Text>} />
-          : <Image systemName="checkmark.circle" font={30} foregroundStyle={C.tenue} />}
-        <Text font={11} fontWeight="bold" foregroundStyle={C.testo} lineLimit={1} minScaleFactor={0.8}>{e ? e.titolo : 'Niente in vista'}</Text>
-        <Text font={10} foregroundStyle={C.tenue} lineLimit={1}>{e ? quando(e) : ' '}</Text>
-        </VStack></Link>
-        <HStack spacing={6}>
-          <Pulsante icona="chevron.left" intent={CambiaEvento({ delta: -1 })} size={22} />
+      <VStack spacing={0} padding={6} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
+        {/* 3 righe sempre della stessa altezza: quella scelta con le frecce è evidenziata */}
+        <VStack spacing={3}>
+          {[0, 1, 2].map(k => {
+            const r = finestra[k]
+            if (!r) return <HStack frame={{ maxWidth: 'infinity', height: RIGA }}>{k === 0 && !lista.length ? <Text font={11} foregroundStyle={C.tenue}>Niente in vista</Text> : <Spacer />}</HStack>
+            const scelto = inizioFin + k === sel
+            return <Link url={apriImpegno(r)}>
+              <ZStack frame={{ maxWidth: 'infinity', height: RIGA }}>
+                <RoundedRectangle fill={scelto ? 'systemBackground' : 'clear'} cornerRadius={8} />
+                <HStack spacing={5} padding={{ leading: 5, trailing: 4 }}>
+                  <RoundedRectangle fill={r.colore} cornerRadius={1.5} frame={{ width: 3, height: RIGA - 10 }} />
+                  <VStack alignment="leading" spacing={0} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
+                    <Text font={11} fontWeight="semibold" foregroundStyle={C.testo} lineLimit={1}>{maiuscola(r.titolo)}</Text>
+                    <Text font={10} foregroundStyle={C.tenue} lineLimit={1}>{quando(r)}</Text>
+                  </VStack>
+                </HStack>
+              </ZStack>
+            </Link>
+          })}
+        </VStack>
+        <Spacer />
+        {/* tasti separati dagli impegni da una linea sottile */}
+        <Rectangle fill={C.linea} frame={{ height: 0.5, maxWidth: 'infinity' }} />
+        <HStack spacing={0} padding={{ top: 5 }}>
+          <Spacer />
+          <Pulsante icona="chevron.left" intent={CambiaEvento({ delta: -1 })} size={22} chiaro />
+          <Spacer />
           <Segui size={22} />
-          <Pulsante icona="chevron.right" intent={CambiaEvento({ delta: 1 })} size={22} />
+          <Spacer />
+          <Pulsante icona="chevron.right" intent={CambiaEvento({ delta: 1 })} size={22} chiaro />
+          <Spacer />
         </HStack>
       </VStack>
     </ZStack>
