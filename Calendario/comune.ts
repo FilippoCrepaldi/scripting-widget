@@ -32,11 +32,22 @@ export function salvaStato(s: Stato) { Storage.set('stato', { ...s, data: chiave
 // ---------- eventi ----------
 export type Ev = { id: string, titolo: string, inizio: number, fine: number, tuttoIlGiorno: boolean, luogo: string, colore: string }
 function colore(e: any) { const c = e?.calendar?.color; return typeof c === 'string' && c.length ? c : 'systemRed' }
+// Molti impegni sono "tutto il giorno" con l'orario scritto nel titolo (es. "Ore 12:00 dentista", "cartoni ore 10.00"):
+// se nel titolo c'è un orario, l'impegno diventa a quell'ora (durata 1 ora) e l'orario si toglie dal titolo.
+const ORA_NEL_TITOLO = /(?:\bore\s*)?\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/i
 function conv(e: any): Ev {
-  return {
-    id: e.identifier || '', titolo: e.title || 'Evento', inizio: new Date(e.startDate).getTime(), fine: new Date(e.endDate).getTime(),
-    tuttoIlGiorno: !!e.isAllDay, luogo: e.location || '', colore: colore(e),
+  let titolo: string = (e.title || 'Evento').trim()
+  let inizio = new Date(e.startDate).getTime(), fine = new Date(e.endDate).getTime()
+  let tutto = !!e.isAllDay
+  if (tutto) {
+    const m = titolo.match(ORA_NEL_TITOLO)
+    if (m) {
+      const d = new Date(e.startDate); d.setHours(parseInt(m[1], 10), parseInt(m[2], 10), 0, 0)
+      inizio = d.getTime(); fine = inizio + 60 * 60 * 1000; tutto = false
+      titolo = titolo.replace(m[0], ' ').replace(/\s+/g, ' ').trim() || 'Evento'
+    }
   }
+  return { id: e.identifier || '', titolo, inizio, fine, tuttoIlGiorno: tutto, luogo: e.location || '', colore: colore(e) }
 }
 export async function eventiTra(da: Date, a: Date): Promise<Ev[] | null> {
   try {
@@ -48,7 +59,7 @@ export async function eventiTra(da: Date, a: Date): Promise<Ev[] | null> {
 export async function prossimi(n = 6): Promise<Ev[]> {
   const ora = Date.now()
   const l = await eventiTra(new Date(), inizioGiorno(new Date(), 8))
-  return (l || []).filter(e => !e.tuttoIlGiorno && e.fine > ora).slice(0, n)
+  return (l || []).filter(e => e.fine > ora).slice(0, n) // anche quelli di tutto il giorno
 }
 
 // ---------- promemoria ----------

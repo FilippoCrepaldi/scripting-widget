@@ -102,9 +102,9 @@ function Barretta({ colore, alta = 26 }: { colore: string, alta?: number }) {
 
 function quando(e: Ev) {
   const d = new Date(e.inizio)
-  if (e.tuttoIlGiorno) return 'Tutto il giorno'
   const diff = Math.round((inizioGiorno(d).getTime() - mezzanotte.getTime()) / 86400000)
   const g = diff === 0 ? '' : diff === 1 ? 'Domani ' : `${GG[d.getDay()]} `
+  if (e.tuttoIlGiorno) return g ? g + 'tutto il giorno' : 'Tutto il giorno'
   return g + hhmm(d)
 }
 function mancano(e: Ev) {
