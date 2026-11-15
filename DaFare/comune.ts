@@ -107,3 +107,9 @@ export function quandoApp(a: Appuntamento) {
   if (/^\d{4}-\d{2}-\d{2}/.test(g)) { const n = gg(g); g = n === 0 ? 'oggi' : n === 1 ? 'domani' : `${pd(g).getDate()} ${MESI[pd(g).getMonth()]}` }
   return [g, a.ora].filter(Boolean).join(' ')
 }
+
+// ---------- vista del widget: "aperte" o "fatte", e pagina ----------
+export function vista(): string { return leggi("dafare-vista") === "fatte" ? "fatte" : "aperte" }
+export function pagina(): number { const n = parseInt(leggi("dafare-pagina") || "0", 10); return isNaN(n) ? 0 : n }
+export function scriviVista(v: string) { scrivi("dafare-vista", v); scrivi("dafare-pagina", "0") }
+export function scriviPagina(n: number) { scrivi("dafare-pagina", String(Math.max(0, n))) }
