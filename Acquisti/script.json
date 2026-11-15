@@ -1,0 +1,18 @@
+{
+  "name": "Acquisti",
+  "color": "rgba(31,99,198,1)",
+  "version": "1.2.1",
+  "description": "Widget grande con due pagine: container in arrivo (Container Tracker) e scorte di materia prima (controllo riordino)",
+  "localizedNames": null,
+  "runInApp": false,
+  "remoteResource": null,
+  "localizedDescriptions": null,
+  "author": {
+    "name": "Filippo Crepaldi",
+    "email": null,
+    "homepage": "https://github.com/FilippoCrepaldi/scripting-widget"
+  },
+  "intentInputTypes": [],
+  "contributors": [],
+  "icon": "shippingbox"
+}
