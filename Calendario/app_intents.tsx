@@ -11,7 +11,7 @@ export const CambiaGiorno = AppIntentManager.register({
     const s = leggiStato()
     s.giorno = delta === 0 ? 0 : Math.max(-30, Math.min(60, s.giorno + delta))
     salvaStato(s)
-    Widget.reloadAll()
+    Widget.reloadAll(); try { (Widget as any).reloadUserWidgets?.() } catch (e) { }
   },
 })
 
@@ -23,7 +23,7 @@ export const CambiaEvento = AppIntentManager.register({
     const s = leggiStato()
     s.evento = Math.max(0, Math.min(5, s.evento + delta))
     salvaStato(s)
-    Widget.reloadAll()
+    Widget.reloadAll(); try { (Widget as any).reloadUserWidgets?.() } catch (e) { }
   },
 })
 
@@ -35,7 +35,7 @@ export const ScegliGiorno = AppIntentManager.register({
     const s = leggiStato()
     s.sel = offset
     salvaStato(s)
-    Widget.reloadAll()
+    Widget.reloadAll(); try { (Widget as any).reloadUserWidgets?.() } catch (e) { }
   },
 })
 
@@ -48,7 +48,7 @@ export const Completa = AppIntentManager.register({
       const r: any = await Reminder.get(id)
       if (r) { r.isCompleted = !r.isCompleted; await r.save() }
     } catch (e) { }
-    Widget.reloadAll()
+    Widget.reloadAll(); try { (Widget as any).reloadUserWidgets?.() } catch (e) { }
   },
 })
 
@@ -58,7 +58,7 @@ export const AggiornaTutto = AppIntentManager.register({
   protocol: AppIntentProtocol.AppIntent,
   perform: async (_: undefined) => {
     Storage.remove('meteo')
-    Widget.reloadAll()
+    Widget.reloadAll(); try { (Widget as any).reloadUserWidgets?.() } catch (e) { }
     ControlWidget.reloadButtons()
   },
 })

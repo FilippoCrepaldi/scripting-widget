@@ -16,7 +16,7 @@ async function nuovoEvento(giorno: number) {
   e.startDate = inizio
   e.endDate = new Date(inizio.getTime() + 60 * 60 * 1000)
   await e.presentEditView()
-  Widget.reloadAll()
+  Widget.reloadAll(); try { (Widget as any).reloadUserWidgets?.() } catch (e) { }
 }
 
 // Avvia il conto alla rovescia del prossimo impegno (schermata di blocco e Dynamic Island)
@@ -53,7 +53,7 @@ async function main() {
   await conLimite(CalendarEvent.getAll(new Date(), new Date(Date.now() + 86400000)), 8000)
   await conLimite(Reminder.getIncompletes({}), 8000)
   await conLimite(aggiornaPosizione(), 8000)
-  Widget.reloadAll()
+  Widget.reloadAll(); try { (Widget as any).reloadUserWidgets?.() } catch (e) { }
 
   try {
     await Widget.preview({ family: 'systemMedium', parameters: { options: { 'Medio 2': JSON.stringify('2'), 'Medio 1': JSON.stringify('1'), 'Medio 3': JSON.stringify('3') }, default: 'Medio 2' } })
