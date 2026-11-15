@@ -8,7 +8,7 @@ import {
   GIORNI, GG, G1, MESI, MM, NOME_SCRIPT, inizioGiorno, hhmm, leggiStato,
   eventiTra, prossimi, promemoria, meteo, type Ev, type Meteo, type Prom,
 } from './comune'
-import { CambiaGiorno, CambiaEvento, ScegliGiorno, Completa, SeguiImpegno } from './app_intents'
+import { CambiaGiorno, CambiaEvento, ScegliGiorno, Completa } from './app_intents'
 
 // Colori di sistema: si leggono bene sia sullo sfondo sfocato sia in chiaro/scuro
 const C = {
@@ -76,6 +76,12 @@ function Pulsante({ icona, intent, rosso = false, size = 26 }: any) {
   return <Button buttonStyle="plain" intent={intent}><Tondo icona={icona} rosso={rosso} size={size} /></Button>
 }
 // "+" apre l'app con la scheda nuovo evento già sul giorno scelto
+// 🔔 apre l'app per un attimo e avvia il conto alla rovescia del prossimo impegno
+function Segui({ size = 22 }: { size?: number }) {
+  return <Link url={`scripting://run/${encodeURIComponent(NOME_SCRIPT)}?azione=segui`}>
+    <Tondo icona="bell.badge" size={size} />
+  </Link>
+}
 function Nuovo({ giorno = 0, size = 26 }: { giorno?: number, size?: number }) {
   return <Link url={`scripting://run/${encodeURIComponent(NOME_SCRIPT)}?azione=nuovo&giorno=${giorno}`}>
     <Tondo icona="plus" rosso size={size} />
@@ -171,7 +177,7 @@ function ContoAllaRovescia({ m, lista, indice }: { m: Meteo | null, lista: Ev[],
         <Text font={10} foregroundStyle={C.tenue} lineLimit={1}>{e ? quando(e) : ' '}</Text>
         <HStack spacing={6}>
           <Pulsante icona="chevron.left" intent={CambiaEvento(-1)} size={22} />
-          <Pulsante icona="bell.badge" intent={SeguiImpegno(undefined)} size={22} />
+          <Segui size={22} />
           <Pulsante icona="chevron.right" intent={CambiaEvento(1)} size={22} />
         </HStack>
       </VStack>
@@ -383,6 +389,12 @@ function Circolare() {
 
 // ---------- avvio ----------
 async function main() {
+  try { await disegna() } catch (e) {
+    Widget.present(<VStack padding={12}><Text font={12} fontWeight="bold" foregroundStyle="systemRed">Errore nel widget</Text><Text font={10}>{String(e)}</Text></VStack>)
+  }
+}
+
+async function disegna() {
   const fam = Widget.family as string
   const { w, h } = misure()
   const L = w - 32

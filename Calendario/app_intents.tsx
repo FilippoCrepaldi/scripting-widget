@@ -1,7 +1,7 @@
 // app_intents.tsx – le azioni dei pulsanti (widget, Centro di Controllo)
-import { AppIntentManager, AppIntentProtocol, Widget, ControlWidget, Storage, Reminder, LiveActivity } from 'scripting'
-import { leggiStato, salvaStato, prossimi, GG } from './comune'
-import { ProssimoImpegno } from './live_activity'
+import { AppIntentManager, AppIntentProtocol, Widget, ControlWidget, Storage, Reminder } from 'scripting'
+import { leggiStato, salvaStato } from './comune'
+// Nota: qui NON si importa live_activity.tsx (il widget importa questo file e la Live Activity va avviata dall'app)
 
 // ‹ › cambia giorno (0 = torna a oggi)
 export const CambiaGiorno = AppIntentManager.register({
@@ -51,50 +51,6 @@ export const Completa = AppIntentManager.register({
     Widget.reloadAll()
   },
 })
-
-// Avvia il conto alla rovescia del prossimo impegno (schermata di blocco + Dynamic Island)
-export const SeguiImpegno = AppIntentManager.register({
-  name: 'SeguiImpegno',
-  protocol: AppIntentProtocol.LiveActivityIntent,
-  perform: async (_: undefined) => {
-    const [e] = await prossimi(1)
-    if (!e) return
-    await chiudiPrecedente()
-    const d = new Date(e.inizio)
-    const a = ProssimoImpegno()
-    const ok = await a.start(
-      { titolo: e.titolo, inizio: e.inizio, fine: e.fine, luogo: e.luogo, colore: e.colore, giorno: GG[d.getDay()].toUpperCase(), numero: String(d.getDate()) },
-      { staleDate: e.fine }
-    )
-    if (ok) {
-      try {
-        const ids = await LiveActivity.getAllActivitiesIds()
-        Storage.set('liveActivity', { id: ids[ids.length - 1], stato: { titolo: e.titolo, inizio: e.inizio, fine: e.fine, luogo: e.luogo, colore: e.colore, giorno: GG[d.getDay()].toUpperCase(), numero: String(d.getDate()) } })
-      } catch (err) { }
-    }
-    Widget.reloadAll()
-  },
-})
-
-// Chiude il conto alla rovescia
-export const FermaImpegno = AppIntentManager.register({
-  name: 'FermaImpegno',
-  protocol: AppIntentProtocol.LiveActivityIntent,
-  perform: async (_: undefined) => {
-    await chiudiPrecedente()
-    Widget.reloadAll()
-  },
-})
-
-async function chiudiPrecedente() {
-  const la = Storage.get<{ id: string, stato: any }>('liveActivity')
-  if (!la || !la.id) return
-  try {
-    const a: any = LiveActivity.from(la.id, 'ProssimoImpegno')
-    if (a) await a.end(la.stato, { dismissTimeInterval: 0 })
-  } catch (e) { }
-  Storage.remove('liveActivity')
-}
 
 // Usato dal pulsante del Centro di Controllo per aggiornare anche i widget
 export const AggiornaTutto = AppIntentManager.register({
