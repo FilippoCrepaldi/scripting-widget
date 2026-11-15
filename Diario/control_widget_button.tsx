@@ -4,7 +4,7 @@ import { AggiornaDiario } from "./app_intents"
 
 ControlWidget.present(
   <ControlWidgetButton
-    intent={AggiornaDiario(undefined)}
+    intent={AggiornaDiario({ motivo: "centro" })}
     label={{ title: "Aggiorna diario", systemImage: "fork.knife.circle" }}
   />
 )

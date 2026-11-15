@@ -1,22 +1,22 @@
 // Diario: tocca ▶ per il pannello (anteprime, Salute, Live Activity)
 import { Navigation, NavigationStack, List, Section, Button, Text, TextField, useState, Widget, Script } from "scripting"
-import { carica, salvaInSalute, prossimoPasto } from "./comune"
+import { carica, salvaInSalute, prossimoPasto, leggi, scrivi, ricaricaWidget } from "./comune"
 import { ProssimoPasto, StatoPasto } from "./live_activity"
 
 function Pannello() {
   const [msg, setMsg] = useState("")
-  const [url, setUrl] = useState(() => { try { return Storage.get<string>("diario-url") || "" } catch (e) { return "" } })
+  const [url, setUrl] = useState(() => leggi("diario-url") || "")
   const options = { "Cibo / Cuore": "", "Corpo": "corpo", "Movimento": "movimento" }
   return <NavigationStack>
     <List navigationTitle="Diario">
       <Section header={<Text>Indirizzo dei dati (si fa una volta)</Text>}>
         <TextField title="Indirizzo" prompt="https://…/widget/…" value={url} onChanged={setUrl} />
-        <Button title="Salva indirizzo" action={() => { try { Storage.set("diario-url", url.trim()); Widget.reloadAll(); setMsg("Indirizzo salvato. Riapri lo script per usarlo.") } catch (e) { setMsg("Errore: " + e) } }} />
+        <Button title="Salva indirizzo" action={() => { scrivi("diario-url", url.trim()); ricaricaWidget(); setMsg("Indirizzo salvato.") }} />
       </Section>
       <Section header={<Text>Widget</Text>}>
         <Button title="Anteprima widget medio" action={async () => { await Widget.preview({ family: 'systemMedium', parameters: { options, default: "Cibo / Cuore" } } as any) }} />
         <Button title="Anteprima widget piccolo" action={async () => { await Widget.preview({ family: 'systemSmall', parameters: { options, default: "Cibo / Cuore" } } as any) }} />
-        <Button title="Aggiorna i widget adesso" action={() => { Widget.reloadAll(); setMsg("Widget aggiornati.") }} />
+        <Button title="Aggiorna i widget adesso" action={async () => { await carica(); ricaricaWidget(); setMsg("Widget aggiornati.") }} />
       </Section>
       <Section header={<Text>App Salute</Text>}>
         <Button title="Scrivi i pasti di oggi in Salute" action={async () => {
@@ -33,6 +33,9 @@ function Pannello() {
             setMsg(ok ? `Sulla schermata di blocco: ${s.pasto}` : "Live Activity non avviata: controlla che siano attive per Scripting in Impostazioni.")
           } catch (e) { setMsg("Live Activity: " + e) }
         }} />
+      </Section>
+      <Section header={<Text>Controllo</Text>}>
+        <Text>{"Ultimo tocco su ↻ nel widget: " + (leggi("diario-tocco") || "mai")}</Text>
       </Section>
       {msg ? <Section><Text>{msg}</Text></Section> : null}
     </List>

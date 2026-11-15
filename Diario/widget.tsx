@@ -3,9 +3,9 @@
 // Piccolo: Cuore (o "movimento" se nel parametro scrivi: movimento)
 import { VStack, HStack, ZStack, Text, Spacer, Circle, Capsule, RoundedRectangle, Image, Link, Button, Widget } from 'scripting'
 import { AggiornaDiario } from './app_intents'
-
-const DATI_URL = (() => { try { return Storage.get<string>("diario-url") || "" } catch (e) { return "" } })()   // indirizzo dei dati: si inserisce dal pannello dello script
-const DIARIO = "https://claude.ai/artifact/R63J7V5KsrkgskBTJdKyir"
+import { carica as caricaDati, urlDati, DIARIO, Dati, Voce, oggi } from './comune'
+// i tasti aprono il diario sulla schermata giusta (#apri=...)
+const apri = (k: string) => DIARIO + "#apri=" + k
 
 // ---------- colori ----------
 // colori di sistema: si adattano da soli a chiaro/scuro e allo sfondo sfocato
@@ -18,13 +18,6 @@ const K = {
 const TONO: Record<string, string> = { ok: K.ok, top: K.top, warn: K.warn, bad: K.bad }
 
 // ---------- dati ----------
-type Voce = { k: string, l: string, s: string, u: string, v: number, lo: number, hi: number, tone: string }
-type Dati = {
-  cibo?: { data: string, kcal: number, kcal_obj: number, c: number, p: number, f: number, c_obj: number, p_obj: number, f_obj: number }
-  corpo?: Voce[]
-  passi?: { data: string, n: number, obiettivo: number }
-  aggiornato?: string
-}
 const PROVA: Dati = {
   cibo: { data: oggi(), kcal: 412, kcal_obj: 1924, c: 52, p: 24, f: 12, c_obj: 217, p_obj: 123, f_obj: 63 },
   corpo: [
@@ -37,23 +30,9 @@ const PROVA: Dati = {
   ],
   passi: { data: oggi(), n: 4230, obiettivo: 10000 },
 }
-function oggi() {
-  const d = new Date(), p = (n: number) => String(n).padStart(2, "0")
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
-}
 async function carica(): Promise<{ d: Dati, prova: boolean }> {
-  if (!DATI_URL) return { d: PROVA, prova: true }
-  try {
-    const r = await fetch(DATI_URL)
-    if (!r.ok) throw new Error(String(r.status))
-    const d = await r.json() as Dati
-    try { Storage.set("diario-widget", JSON.stringify(d)) } catch (e) {}
-    return { d, prova: false }
-  } catch (e) {
-    let s: string | null = null
-    try { s = Storage.get<string>("diario-widget") } catch (e2) {}
-    return { d: s ? JSON.parse(s) : {}, prova: false }
-  }
+  if (!urlDati()) return { d: PROVA, prova: true }
+  return { d: (await caricaDati()) || {}, prova: false }
 }
 const nf = (n: number) => Math.round(n).toLocaleString("it-IT")
 
@@ -132,10 +111,12 @@ function Cibo({ d }: { d: Dati }) {
     <RoundedRectangle fill={K.traccia} frame={{ maxWidth: 'infinity', height: 1 }} />
     <HStack spacing={0} frame={{ height: 40 }}>
       {tasti.map(([ic, k]) =>
-        <Link url={DIARIO}>
+        <Link url={apri(k)} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
           <Image systemName={ic} font={17} foregroundStyle={K.testo2} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }} />
         </Link>)}
-      <Button title="" systemImage="arrow.clockwise" intent={AggiornaDiario(undefined)} buttonStyle="plain" foregroundStyle={K.testo2} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }} />
+      <Button buttonStyle="plain" intent={AggiornaDiario({ motivo: "widget" })} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
+        <Image systemName="arrow.clockwise" font={17} foregroundStyle={K.testo2} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }} />
+      </Button>
     </HStack>
   </VStack>
 }
@@ -199,22 +180,37 @@ function Movimento({ d }: { d: Dati }) {
   </VStack>
 }
 
-async function main() {
+async function disegna() {
   const { d, prova } = await carica()
   const par = String(Widget.parameter || "").toLowerCase().trim()
   const fam = Widget.family
   const corpo = fam === 'systemSmall'
     ? (par === "movimento" ? <Movimento d={d} /> : <Cuore d={d} />)
     : (par === "corpo" ? <Corpo d={d} /> : <Cibo d={d} />)
+  const ora = new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })
   Widget.present(
-    <ZStack widgetBackground={K.sfondo} widgetURL={DIARIO} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
+    <ZStack widgetBackground={K.sfondo} widgetURL={apri(fam === 'systemSmall' && par !== "movimento" ? "corpo" : "home")} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
       {corpo}
-      {prova ? <VStack frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topTrailing' }} padding={6}>
-        <Text font={8} fontWeight="bold" foregroundStyle={K.testo3}>PROVA</Text>
-      </VStack> : null}
+      {/* in alto a destra: PROVA senza indirizzo, altrimenti l'ora dell'ultimo aggiornamento (così si vede che ↻ ha funzionato) */}
+      <VStack frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topTrailing' }} padding={{ top: 6, trailing: 10 }}>
+        <Text font={8} fontWeight="bold" foregroundStyle={K.testo3}>{prova ? "PROVA" : ora}</Text>
+      </VStack>
     </ZStack>,
-    { policy: 'after', date: new Date(Date.now() + 20 * 60 * 1000) } as any
+    { policy: 'after', date: new Date(Date.now() + 15 * 60 * 1000) } as any
   )
+}
+
+// se qualcosa va storto, l'errore si vede sul widget invece di un riquadro vuoto
+async function main() {
+  try { await disegna() } catch (e) {
+    Widget.present(
+      <VStack widgetBackground={K.sfondo} padding={12} spacing={4} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
+        <Text font={12} fontWeight="bold" foregroundStyle={K.bad}>Diario: errore</Text>
+        <Text font={10} foregroundStyle={K.testo2}>{String(e)}</Text>
+      </VStack>,
+      { policy: 'after', date: new Date(Date.now() + 5 * 60 * 1000) } as any
+    )
+  }
 }
 
 main()
