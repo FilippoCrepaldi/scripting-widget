@@ -132,12 +132,34 @@ function Pasti({ d }: { d: Dati }) {
     </HStack>)}
   </VStack>
 }
+// Il testo del piano è lungo (gruppi con "•", alternative separate da "|"): per ogni gruppo mostro
+// la prima scelta e quante altre ce ne sono, divisi in due colonne affiancate.
+function gruppiPiano(testo: string): { cibo: string, altri: number }[] {
+  return String(testo || "").split(/•|\n/).map(g => g.replace(/^\s*\+\s*/, "").trim()).filter(g => g.length > 2)
+    .map(g => {
+      const parti = g.split("|").map(x => x.replace(/\([^)]*\)/g, "").replace(/\s+/g, " ").trim()).filter(Boolean)
+      const cibo = (parti[0] || "").replace(/^(Secondo|Primo|Contorno|Uno tra)\s*:\s*/i, "")
+      return { cibo, altri: parti.length - 1 }
+    }).slice(0, 6)
+}
 function Prossimo({ d }: { d: Dati }) {
   const p = prossimoPasto(d)
-  return <VStack alignment="leading" spacing={2} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
-    {p.ore ? <Text font={10} fontWeight="semibold" foregroundStyle={K.testo3}>{p.ore}</Text> : null}
-    <Text font={16} fontWeight="heavy" foregroundStyle={K.testo}>{p.pasto}</Text>
-    <Text font={11} foregroundStyle={K.testo2} lineLimit={3}>{p.testo}</Text>
+  const g = gruppiPiano(p.testo)
+  const meta = Math.ceil(g.length / 2)
+  const colonna = (xs: { cibo: string, altri: number }[]) => <VStack alignment="leading" spacing={4} frame={{ maxWidth: 'infinity', alignment: 'topLeading' }}>
+    {xs.map(x => <VStack alignment="leading" spacing={0}>
+      <Text font={10} foregroundStyle={K.testo} lineLimit={2}>{x.cibo}</Text>
+      {x.altri > 0 ? <Text font={9} foregroundStyle={K.testo3}>{`o altri ${x.altri}`}</Text> : null}
+    </VStack>)}
+  </VStack>
+  return <VStack alignment="leading" spacing={5} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
+    <HStack spacing={5} alignment="lastTextBaseline">
+      <Text font={15} fontWeight="heavy" foregroundStyle={K.testo}>{p.pasto}</Text>
+      {p.ore ? <Text font={10} fontWeight="semibold" foregroundStyle={K.testo3}>{p.ore}</Text> : null}
+    </HStack>
+    {g.length <= 1
+      ? <Text font={11} foregroundStyle={K.testo2} lineLimit={4}>{g[0] ? g[0].cibo + (g[0].altri ? ` · o altri ${g[0].altri}` : "") : p.testo}</Text>
+      : <HStack alignment="top" spacing={8}>{colonna(g.slice(0, meta))}{colonna(g.slice(meta))}</HStack>}
   </VStack>
 }
 function Cibo({ d, ora }: { d: Dati, ora: string }) {
