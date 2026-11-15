@@ -75,7 +75,7 @@ function DataPiccola({ giorno = 0, lunga = true }: { giorno?: number, lunga?: bo
   </HStack>
 }
 // Numero di versione piccolo accanto alla data: serve per controllare che il widget usi il codice nuovo (da togliere poi)
-const VERSIONE = 'v1.2.2'
+const VERSIONE = 'v1.2.3'
 // L'app Orologio non si può aprire direttamente da un widget: passa da un Comando Rapido "Apri Orologio" (azione "Apri app" → Orologio)
 const APRI_OROLOGIO = 'shortcuts://run-shortcut?name=' + encodeURIComponent('Apri Orologio')
 
@@ -173,7 +173,7 @@ function ContoAllaRovescia({ m, lista, indice }: { m: Meteo | null, lista: Ev[],
   // Lista dei prossimi impegni: ne mostra 3, e la finestra segue quello scelto con le frecce
   const RIGA = 30
   const sel = Math.min(indice, Math.max(0, lista.length - 1))
-  const inizioFin = Math.max(0, Math.min(sel - 1, lista.length - 3))
+  const inizioFin = Math.max(0, Math.min(sel, lista.length - 3)) // la lista scorre: quello scelto sta in cima
   const finestra = lista.slice(inizioFin, inizioFin + 3)
   return <HStack spacing={12} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
     <VStack alignment="leading" spacing={0} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
@@ -203,12 +203,12 @@ function ContoAllaRovescia({ m, lista, indice }: { m: Meteo | null, lista: Ev[],
             const scelto = inizioFin + k === sel
             return <Link url={apriImpegno(r)}>
               <ZStack frame={{ maxWidth: 'infinity', height: RIGA }}>
-                <RoundedRectangle fill={scelto ? 'systemBackground' : 'clear'} cornerRadius={8} />
+                <RoundedRectangle fill={scelto ? r.colore : 'clear'} cornerRadius={8} />
                 <HStack spacing={5} padding={{ leading: 5, trailing: 4 }}>
-                  <RoundedRectangle fill={r.colore} cornerRadius={1.5} frame={{ width: 3, height: RIGA - 10 }} />
+                  <RoundedRectangle fill={scelto ? 'white' : r.colore} cornerRadius={1.5} frame={{ width: 3, height: RIGA - 10 }} />
                   <VStack alignment="leading" spacing={0} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
-                    <Text font={11} fontWeight="semibold" foregroundStyle={C.testo} lineLimit={1}>{maiuscola(r.titolo)}</Text>
-                    <Text font={10} foregroundStyle={C.tenue} lineLimit={1}>{quando(r)}</Text>
+                    <Text font={11} fontWeight="semibold" foregroundStyle={scelto ? 'white' : C.testo} lineLimit={1}>{maiuscola(r.titolo)}</Text>
+                    <Text font={10} foregroundStyle={scelto ? 'white' : C.tenue} lineLimit={1}>{quando(r)}</Text>
                   </VStack>
                 </HStack>
               </ZStack>
