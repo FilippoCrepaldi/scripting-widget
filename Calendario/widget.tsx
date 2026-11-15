@@ -46,9 +46,13 @@ function Ora({ size }: { size: number }) {
 const ORAMIN = 2.85, CIFRA = 0.62 // misurate sull'iPhone
 function Ritaglio({ size, inizio, colore, peso }: { size: number, inizio: boolean, colore: string, peso: string }) {
   const larghezza = inizio ? size * (ORAMIN - (ora.getHours() < 10 ? CIFRA : 0)) : size * 2 * CIFRA + 1
-  return <HStack frame={{ width: larghezza, height: size * 1.2, alignment: inizio ? 'leading' : 'trailing' }} clipped>
+  // Sulla Home il timer occupa uno spazio molto più largo delle cifre e si mette al centro:
+  // gli diamo noi una larghezza fissa e lo allineamo a sinistra (ore) o a destra (secondi), poi ritagliamo.
+  const al = inizio ? 'leading' : 'trailing'
+  return <HStack frame={{ width: larghezza, height: size * 1.2, alignment: al }} clipped>
     <DateLabel date={mezzanotte} style="timer" font={size} fontWeight={peso as any} monospacedDigit
-      foregroundStyle={colore} lineLimit={1} fixedSize multilineTextAlignment={inizio ? 'leading' : 'trailing'} />
+      foregroundStyle={colore} lineLimit={1} multilineTextAlignment={al}
+      frame={{ width: size * 5, alignment: al }} />
   </HStack>
 }
 function OraESecondi({ size, sec }: { size: number, sec: number }) {
