@@ -6,7 +6,7 @@ import {
 } from 'scripting'
 import {
   GIORNI, GG, G1, MESI, MM, NOME_SCRIPT, inizioGiorno, hhmm, leggiStato,
-  eventiTra, prossimi, promemoria, meteo, salvaQuanti, type Ev, type Meteo, type Prom,
+  eventiTra, prossimi, promemoria, meteo, salvaQuanti, precipitazione, type Ev, type Meteo, type Prom,
 } from './comune'
 import { CambiaGiorno, CambiaEvento, ScegliGiorno, Completa } from './app_intents'
 
@@ -182,12 +182,22 @@ function ContoAllaRovescia({ m, lista, indice }: { m: Meteo | null, lista: Ev[],
         </VStack>
       </Link>
       <Spacer />
-      {m ? <Link url="weather://"><HStack spacing={8}>
-        <Image systemName={m.icona} font={26} foregroundStyle={C.testo} />
+      {m ? <Link url="weather://"><HStack spacing={8} alignment="bottom">
+        {/* adesso: temperatura, condizione scritta, max/min */}
         <VStack alignment="leading" spacing={0}>
-          <Text font={20} fontWeight="semibold" foregroundStyle={C.testo}>{`${m.temp}°`}</Text>
-          <Text font={10} foregroundStyle={C.tenue} lineLimit={1}>{`${m.testo ? m.testo + ' · ' : ''}${m.max}° / ${m.min}°`}</Text>
+          <Text font={24} fontWeight="light" foregroundStyle={C.testo}>{`${m.temp}°`}</Text>
+          <Text font={10} fontWeight="semibold" foregroundStyle={C.testo} lineLimit={1}>{m.testo || ' '}</Text>
+          <Text font={9} foregroundStyle={C.tenue} lineLimit={1}>{`↑${m.max}° ↓${m.min}°`}</Text>
         </VStack>
+        {/* prossime 3 ore: icona a colori e, se piove, la parola in azzurro */}
+        <HStack spacing={4} alignment="top">
+          {(m.prossime || []).slice(0, 3).map(o => <VStack spacing={1} frame={{ width: 26 }}>
+            <Text font={9} foregroundStyle={C.tenue}>{String(o.h)}</Text>
+            <Image systemName={o.icona} font={13} symbolRenderingMode="multicolor" foregroundStyle={C.tenue} frame={{ height: 16 }} />
+            <Text font={10} fontWeight="semibold" foregroundStyle={C.testo}>{`${o.t}°`}</Text>
+            <Text font={7} fontWeight="semibold" foregroundStyle="systemBlue" lineLimit={1} minScaleFactor={0.7}>{precipitazione(o.cond) || ' '}</Text>
+          </VStack>)}
+        </HStack>
       </HStack></Link> : null}
     </VStack>
     <ZStack frame={{ width: 148, maxHeight: 'infinity' }}>

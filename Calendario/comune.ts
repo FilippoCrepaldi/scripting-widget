@@ -84,11 +84,20 @@ export async function promemoria(n = 3): Promise<Prom[]> {
 
 // ---------- meteo (tenuto in memoria 30 minuti) ----------
 export type Meteo = { temp: number, icona: string, testo: string, max: number, min: number,
-  ore: { h: number, t: number, icona: string }[], giorni: { k: string, max: number, min: number, icona: string }[] }
+  ore: { h: number, t: number, icona: string }[], giorni: { k: string, max: number, min: number, icona: string }[],
+  prossime?: { h: number, t: number, icona: string, cond: string }[] } // le prossime ore da adesso (anche dopo mezzanotte)
 const COND: Record<string, string> = {
   clear: 'Sereno', mostlyClear: 'Quasi sereno', partlyCloudy: 'Poco nuvoloso', mostlyCloudy: 'Nuvoloso', cloudy: 'Coperto',
   rain: 'Pioggia', drizzle: 'Pioviggine', heavyRain: 'Pioggia forte', foggy: 'Nebbia', haze: 'Foschia', windy: 'Vento',
   snow: 'Neve', thunderstorms: 'Temporali', scatteredThunderstorms: 'Temporali sparsi', sleet: 'Nevischio', breezy: 'Ventilato',
+}
+// Parola da mostrare in azzurro sotto l'ora quando c'è precipitazione (vuota se non piove)
+export function precipitazione(cond: string): string {
+  const k = (cond || '').toLowerCase()
+  if (/thunder|storm|tropical|hurricane/.test(k)) return 'temporale'
+  if (/snow|sleet|flurr|blizzard|freezing|hail|wintry/.test(k)) return 'neve'
+  if (/rain|drizzle|shower/.test(k)) return 'pioggia'
+  return ''
 }
 function num(x: any): number {
   if (typeof x === 'number') return x
@@ -98,7 +107,7 @@ function num(x: any): number {
 }
 export async function meteo(): Promise<Meteo | null> {
   const cache = Storage.get<{ t: number, m: Meteo }>('meteo')
-  if (cache && Date.now() - cache.t < 30 * 60 * 1000) return cache.m
+  if (cache && cache.m && cache.m.prossime && Date.now() - cache.t < 30 * 60 * 1000) return cache.m
   try {
     const pos = Storage.get<{ latitude: number, longitude: number }>('posizione')
     if (!pos) return null // la posizione si salva aprendo lo script (▶)
@@ -106,7 +115,7 @@ export async function meteo(): Promise<Meteo | null> {
     const ora = new Date()
     const [c, h, d]: any[] = await conLimite(Promise.all([
       Weather.requestCurrent(loc),
-      Weather.requestHourlyForecast(loc, { startDate: inizioGiorno(ora), endDate: inizioGiorno(ora, 1) }),
+      Weather.requestHourlyForecast(loc, { startDate: inizioGiorno(ora), endDate: inizioGiorno(ora, 2) }),
       Weather.requestDailyForecast(loc, { startDate: inizioGiorno(ora, -6), endDate: inizioGiorno(ora, 8) }),
     ]), 6000, [null, null, null])
     if (!c) return cache ? cache.m : null
@@ -115,7 +124,8 @@ export async function meteo(): Promise<Meteo | null> {
     const m: Meteo = {
       temp: Math.round(num(c.temperature)), icona: c.symbolName || 'cloud', testo: COND[c.condition] || '',
       max: oggi ? oggi.max : Math.round(num(c.temperature)), min: oggi ? oggi.min : Math.round(num(c.temperature)),
-      ore: (h?.forecast || []).map((x: any) => ({ h: new Date(x.date).getHours(), t: Math.round(num(x.temperature)), icona: x.symbolName || 'cloud' })),
+      ore: (h?.forecast || []).filter((x: any) => new Date(x.date) < inizioGiorno(ora, 1)).map((x: any) => ({ h: new Date(x.date).getHours(), t: Math.round(num(x.temperature)), icona: x.symbolName || 'cloud' })),
+      prossime: (h?.forecast || []).filter((x: any) => new Date(x.date).getTime() > ora.getTime()).slice(0, 4).map((x: any) => ({ h: new Date(x.date).getHours(), t: Math.round(num(x.temperature)), icona: x.symbolName || 'cloud', cond: String(x.condition || '') })),
       giorni,
     }
     Storage.set('meteo', { t: Date.now(), m })
