@@ -265,7 +265,8 @@ async function disegna() {
     <ZStack widgetBackground={K.sfondo} widgetURL={DIARIO} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
       {corpo}
       {/* in alto a destra l'ora dell'ultimo aggiornamento (nel Cibo sta sotto l'anello, vicino a ↻) */}
-      {cibo ? null : <VStack frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topTrailing' }} padding={{ top: 6, trailing: 10 }}>
+      {/* nel Corpo l'ora non serve (Filippo, 15/11): resta solo la scritta PROVA se manca l'indirizzo */}
+      {cibo || (par === "corpo" && !prova) ? null : <VStack frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topTrailing' }} padding={{ top: 6, trailing: 10 }}>
         <Text font={8} fontWeight="bold" foregroundStyle={K.testo3}>{prova ? "PROVA" : ora}</Text>
       </VStack>}
     </ZStack>,
