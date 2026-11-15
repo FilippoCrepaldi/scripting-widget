@@ -125,7 +125,7 @@ export async function meteo(): Promise<Meteo | null> {
       temp: Math.round(num(c.temperature)), icona: c.symbolName || 'cloud', testo: COND[c.condition] || '',
       max: oggi ? oggi.max : Math.round(num(c.temperature)), min: oggi ? oggi.min : Math.round(num(c.temperature)),
       ore: (h?.forecast || []).filter((x: any) => new Date(x.date) < inizioGiorno(ora, 1)).map((x: any) => ({ h: new Date(x.date).getHours(), t: Math.round(num(x.temperature)), icona: x.symbolName || 'cloud' })),
-      prossime: (h?.forecast || []).filter((x: any) => new Date(x.date).getTime() > ora.getTime()).slice(0, 4).map((x: any) => ({ h: new Date(x.date).getHours(), t: Math.round(num(x.temperature)), icona: x.symbolName || 'cloud', cond: String(x.condition || '') })),
+      prossime: (h?.forecast || []).filter((x: any) => new Date(x.date).getTime() > ora.getTime()).slice(0, 6).map((x: any) => ({ h: new Date(x.date).getHours(), t: Math.round(num(x.temperature)), icona: x.symbolName || 'cloud', cond: String(x.condition || '') })),
       giorni,
     }
     Storage.set('meteo', { t: Date.now(), m })

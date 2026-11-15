@@ -167,6 +167,74 @@ function OraGigante({ m, prossimo }: { m: Meteo | null, prossimo: Ev | null }) {
 
 // ---------- 2. Ora, meteo e conto alla rovescia (media) ----------
 const maiuscola = (t: string) => t ? t.charAt(0).toUpperCase() + t.slice(1) : t
+
+// ---------- 6. Grande "A": ora e meteo in alto, 6 ore, 4 impegni, tasti in basso a destra ----------
+function GrandeA({ m, lista, indice }: { m: Meteo | null, lista: Ev[], indice: number }) {
+  const RIGA = 32, PER_PAGINA = 4
+  const sel = Math.min(indice, Math.max(0, lista.length - 1))
+  const inizioFin = Math.floor(sel / PER_PAGINA) * PER_PAGINA // pagine da 4: superato il quarto si gira pagina
+  const finestra = lista.slice(inizioFin, inizioFin + PER_PAGINA)
+  const colore = (lista[sel] && lista[sel].colore) || C.rosso
+  const linea = <Rectangle fill={C.linea} frame={{ maxWidth: 'infinity', minHeight: 0.5, maxHeight: 0.5 }} />
+  return <VStack alignment="leading" spacing={0} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
+    {/* in alto: data, ora e secondi a sinistra (tocco = Orologio), meteo adesso a destra (tocco = Meteo) */}
+    <Link url={APRI_OROLOGIO}><DataPiccola lunga /></Link>
+    <HStack alignment="top" spacing={8}>
+      <Link url={APRI_OROLOGIO}>
+        <OraESecondi size={54} sec={18} />
+      </Link>
+      <Spacer />
+      {m ? <Link url="weather://"><HStack spacing={6} padding={{ top: 6 }}>
+        <Image systemName={m.icona} font={22} symbolRenderingMode="multicolor" foregroundStyle={C.tenue} />
+        <Text font={28} fontWeight="light" foregroundStyle={C.testo}>{`${m.temp}°`}</Text>
+        <VStack alignment="leading" spacing={0}>
+          <Text font={12} fontWeight="semibold" foregroundStyle={C.testo} lineLimit={1}>{m.testo || ' '}</Text>
+          <Text font={11} foregroundStyle={C.tenue} lineLimit={1}>{`↑${m.max}° ↓${m.min}°`}</Text>
+        </VStack>
+      </HStack></Link> : null}
+    </HStack>
+    {/* le prossime 6 ore */}
+    {m && (m.prossime || []).length ? <Link url="weather://"><HStack spacing={0} padding={{ top: 6, bottom: 4 }}>
+      {(m.prossime || []).slice(0, 6).map(o => <VStack spacing={1} frame={{ maxWidth: 'infinity' }}>
+        <Text font={10} foregroundStyle={C.tenue}>{String(o.h)}</Text>
+        <Image systemName={o.icona} font={15} symbolRenderingMode="multicolor" foregroundStyle={C.tenue} frame={{ height: 18 }} />
+        <Text font={12} fontWeight="semibold" foregroundStyle={C.testo}>{`${o.t}°`}</Text>
+        <Text font={8} fontWeight="semibold" foregroundStyle="systemBlue" lineLimit={1} minScaleFactor={0.7}>{precipitazione(o.cond) || ' '}</Text>
+      </VStack>)}
+    </HStack></Link> : null}
+    {/* impegni */}
+    <Text font={11} fontWeight="bold" foregroundStyle={colore} padding={{ top: 2, bottom: 3 }}>PROSSIMI</Text>
+    {[0, 1, 2, 3].map(k => {
+      const r = finestra[k]
+      if (!r) return <VStack spacing={0} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
+        {linea}
+        <HStack frame={{ maxWidth: 'infinity', minHeight: RIGA, maxHeight: RIGA, alignment: 'leading' }}>
+          {k === 0 && !lista.length ? <Text font={12} foregroundStyle={C.tenue}>Niente in vista</Text> : <Spacer />}
+        </HStack>
+      </VStack>
+      const scelto = inizioFin + k === sel
+      return <Link url={apriImpegno(r)}>
+        <VStack spacing={0} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
+          {linea}
+          <HStack spacing={7} frame={{ maxWidth: 'infinity', minHeight: RIGA, maxHeight: RIGA, alignment: 'leading' }}>
+            <RoundedRectangle fill={scelto ? r.colore : 'systemGray3'} cornerRadius={1.5} frame={{ width: 3, height: RIGA - 8 }} />
+            <VStack alignment="leading" spacing={0} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
+              <Text font={12} fontWeight={scelto ? 'bold' : 'medium'} foregroundStyle={C.testo} lineLimit={1}>{maiuscola(r.titolo)}</Text>
+              <Text font={10} fontWeight={scelto ? 'semibold' : 'regular'} foregroundStyle={scelto ? r.colore : C.tenue} lineLimit={1}>{quando(r)}</Text>
+            </VStack>
+          </HStack>
+        </VStack>
+      </Link>
+    })}
+    <Spacer />
+    <HStack spacing={7}>
+      <Spacer />
+      <Pulsante icona="chevron.up" intent={CambiaEvento({ delta: -1 })} size={22} />
+      <Segui size={22} e={lista[sel] || null} />
+      <Pulsante icona="chevron.down" intent={CambiaEvento({ delta: 1 })} size={22} />
+    </HStack>
+  </VStack>
+}
 function ContoAllaRovescia({ m, lista, indice }: { m: Meteo | null, lista: Ev[], indice: number }) {
   // Lista dei prossimi impegni: ne mostra 3, e la finestra segue quello scelto con le frecce
   const RIGA = 32
@@ -452,7 +520,7 @@ async function disegna() {
   const st = leggiStato()
   const p = parseInt(String(Widget.parameter || '').replace(/["'\s]/g, ''), 10)
   const layout = fam === 'systemLarge' || fam === 'systemExtraLarge'
-    ? (p === 5 ? 5 : 4)
+    ? (p === 4 || p === 5 ? p : 6) // 6 = grande "A" (predefinito)
     : fam === 'systemMedium' ? ([1, 2, 3].includes(p) ? p : 2) : 0
 
   // Si aggiorna ogni 15 minuti, alle 10:00 (l'ora passa da 1 a 2 cifre) e a mezzanotte
@@ -488,6 +556,8 @@ async function disegna() {
   } else if (layout === 4) {
     const [l, pr] = await Promise.all([eventiTra(inizioGiorno(ora, st.giorno), inizioGiorno(ora, st.giorno + 1)), promemoria(2)])
     corpo = <Cruscotto m={m} lista={l || []} prom={pr} giorno={st.giorno} larghezza={L} />
+  } else if (layout === 6) {
+    corpo = <GrandeA m={m} lista={vicini} indice={st.evento} />
   } else {
     const tutti = await eventiTra(inizioGiorno(ora, -2), inizioGiorno(ora, 5)) || []
     const giorni: Record<number, number> = {}
@@ -500,7 +570,7 @@ async function disegna() {
   }
 
   Widget.present(
-    <VStack widgetBackground={{ light: '#FFFFFF', dark: '#1C1C1E' }} widgetURL={layout === 2 ? APRI_OROLOGIO : 'calshow://'} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
+    <VStack widgetBackground={{ light: '#FFFFFF', dark: '#1C1C1E' }} widgetURL={layout === 2 || layout === 6 ? APRI_OROLOGIO : 'calshow://'} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
       <VStack padding={16} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
         {corpo}
       </VStack>

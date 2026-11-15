@@ -71,7 +71,7 @@ async function main() {
 
   try {
     await Widget.preview({ family: 'systemMedium', parameters: { options: { 'Medio 2': JSON.stringify('2'), 'Medio 1': JSON.stringify('1'), 'Medio 3': JSON.stringify('3') }, default: 'Medio 2' } })
-    await Widget.preview({ family: 'systemLarge', parameters: { options: { 'Grande 4': JSON.stringify('4'), 'Grande 5': JSON.stringify('5') }, default: 'Grande 4' } })
+    await Widget.preview({ family: 'systemLarge', parameters: { options: { 'Grande 6': JSON.stringify('6'), 'Grande 4': JSON.stringify('4'), 'Grande 5': JSON.stringify('5') }, default: 'Grande 6' } })
   } catch (e) {
     await Dialog.alert({ title: 'Anteprima non riuscita', message: String(e) })
   }
