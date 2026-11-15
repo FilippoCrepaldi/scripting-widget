@@ -10,6 +10,11 @@ export const G1 = ['D', 'L', 'M', 'M', 'G', 'V', 'S']
 export const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
 export const MM = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic']
 
+// Non aspetta mai più di qualche secondo: se un permesso manca o un servizio non risponde, il widget si disegna lo stesso
+export function conLimite<T>(p: Promise<T>, ms = 4000, riserva: any = null): Promise<T> {
+  return Promise.race([p.catch(() => riserva), new Promise<T>(r => setTimeout(() => r(riserva), ms))])
+}
+
 export function inizioGiorno(d: Date, piu = 0) { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() + piu); return x }
 export function chiave(d: Date) { return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}` }
 export function hhmm(d: Date) { return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
@@ -35,7 +40,8 @@ function conv(e: any): Ev {
 }
 export async function eventiTra(da: Date, a: Date): Promise<Ev[] | null> {
   try {
-    const l: any[] = await CalendarEvent.getAll(da, a)
+    const l: any[] | null = await conLimite(CalendarEvent.getAll(da, a))
+    if (!l) return null
     return l.map(conv).sort((x, y) => x.inizio - y.inizio)
   } catch (e) { return null }
 }
@@ -49,7 +55,7 @@ export async function prossimi(n = 6): Promise<Ev[]> {
 export type Prom = { id: string, titolo: string, fatto: boolean }
 export async function promemoria(n = 3): Promise<Prom[]> {
   try {
-    const l: any[] = await Reminder.getIncompletes({ endDate: inizioGiorno(new Date(), 1) })
+    const l: any[] = (await conLimite(Reminder.getIncompletes({ endDate: inizioGiorno(new Date(), 1) }))) || []
     return l.slice(0, n).map(r => ({ id: r.identifier, titolo: r.title, fatto: !!r.isCompleted }))
   } catch (e) { return [] }
 }
@@ -76,11 +82,12 @@ export async function meteo(): Promise<Meteo | null> {
     if (!pos) return null // la posizione si salva aprendo lo script (▶)
     const loc: any = { latitude: pos.latitude, longitude: pos.longitude, timestamp: Date.now() }
     const ora = new Date()
-    const [c, h, d]: any[] = await Promise.all([
+    const [c, h, d]: any[] = await conLimite(Promise.all([
       Weather.requestCurrent(loc),
       Weather.requestHourlyForecast(loc, { startDate: inizioGiorno(ora), endDate: inizioGiorno(ora, 1) }),
       Weather.requestDailyForecast(loc, { startDate: inizioGiorno(ora, -6), endDate: inizioGiorno(ora, 8) }),
-    ])
+    ]), 6000, [null, null, null])
+    if (!c) return cache ? cache.m : null
     const giorni = (d?.forecast || []).map((x: any) => ({ k: chiave(new Date(x.date)), max: Math.round(num(x.highTemperature)), min: Math.round(num(x.lowTemperature)), icona: x.symbolName || 'cloud' }))
     const oggi = giorni.find((g: any) => g.k === chiave(ora))
     const m: Meteo = {
@@ -104,7 +111,7 @@ export async function aggiornaPosizione() {
 
 export async function calendarioPreferito(): Promise<any> {
   try {
-    const l: any[] = await Calendar.forEvents()
+    const l: any[] = (await conLimite(Calendar.forEvents())) || []
     return l.find(c => c.title === CALENDARIO_PREFERITO && c.allowsContentModifications) || await Calendar.defaultForEvents()
   } catch (e) { return null }
 }
