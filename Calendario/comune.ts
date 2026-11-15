@@ -21,13 +21,21 @@ export function hhmm(d: Date) { return `${String(d.getHours()).padStart(2, '0')}
 
 // ---------- stato dei pulsanti (giorno scelto, impegno scelto, vista) ----------
 export type Stato = { data: string, giorno: number, evento: number, sel: number }
+// Lo stato sta nello spazio condiviso di Scripting e come testo: così il pulsante del widget (che gira a parte)
+// e il widget leggono sicuramente lo stesso valore.
+const CHIAVE_STATO = 'calendario-stato'
 export function leggiStato(): Stato {
   const oggi = chiave(new Date())
-  const s = Storage.get<Stato>('stato')
+  let s: Stato | null = null
+  try { const r = Storage.get<string>(CHIAVE_STATO, { shared: true } as any); s = r ? JSON.parse(r) : null } catch (e) { }
   if (!s || s.data !== oggi) return { data: oggi, giorno: 0, evento: 0, sel: 0 } // ogni giorno si riparte da oggi
   return s
 }
-export function salvaStato(s: Stato) { Storage.set('stato', { ...s, data: chiave(new Date()) }) }
+export function salvaStato(s: Stato) {
+  try { Storage.set(CHIAVE_STATO, JSON.stringify({ ...s, data: chiave(new Date()) }), { shared: true } as any) } catch (e) { }
+}
+// Storage scrive in background: si aspetta un attimo prima di ridisegnare il widget
+export const pausa = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 // ---------- eventi ----------
 export type Ev = { id: string, titolo: string, inizio: number, fine: number, tuttoIlGiorno: boolean, luogo: string, colore: string }

@@ -86,7 +86,7 @@ function Pulsante({ icona, intent, rosso = false, size = 26 }: any) {
 // "+" apre l'app con la scheda nuovo evento già sul giorno scelto
 // 🔔 apre l'app per un attimo e avvia il conto alla rovescia del prossimo impegno
 function Segui({ size = 22 }: { size?: number }) {
-  return <Link url={`scripting://run/${encodeURIComponent(NOME_SCRIPT)}?azione=segui`}>
+  return <Link url={`scripting://run_single/${encodeURIComponent(NOME_SCRIPT)}?azione=segui`}>
     <Tondo icona="bell.badge" size={size} />
   </Link>
 }
@@ -107,6 +107,8 @@ function quando(e: Ev) {
   if (e.tuttoIlGiorno) return g ? g + 'tutto il giorno' : 'Tutto il giorno'
   return g + hhmm(d)
 }
+// Apre il Calendario dell'iPhone sul giorno e sull'ora dell'impegno
+function apriImpegno(e: Ev) { return `calshow:${Math.floor(e.inizio / 1000 - 978307200)}` }
 function mancano(e: Ev) {
   const min = Math.max(0, Math.round((e.inizio - Date.now()) / 60000))
   if (e.inizio <= Date.now()) return 'In corso'
@@ -163,26 +165,32 @@ function ContoAllaRovescia({ m, lista, indice }: { m: Meteo | null, lista: Ev[],
   const pieno = e ? (e.inizio <= Date.now() ? 1 : Math.max(0.03, 1 - minuti / 240)) : 0 // l'anello si riempie nelle ultime 4 ore
   return <HStack spacing={12} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
     <VStack alignment="leading" spacing={0} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
-      <DataPiccola lunga={false} />
-      <OraESecondi size={46} sec={18} />
+      <Link url="clock-worldclock://">
+        <VStack alignment="leading" spacing={0}>
+          <DataPiccola lunga={false} />
+          <OraESecondi size={46} sec={18} />
+        </VStack>
+      </Link>
       <Spacer />
-      {m ? <HStack spacing={8}>
+      {m ? <Link url="weather://"><HStack spacing={8}>
         <Image systemName={m.icona} font={26} foregroundStyle={C.testo} />
         <VStack alignment="leading" spacing={0}>
           <Text font={20} fontWeight="semibold" foregroundStyle={C.testo}>{`${m.temp}°`}</Text>
           <Text font={10} foregroundStyle={C.tenue} lineLimit={1}>{`${m.testo ? m.testo + ' · ' : ''}${m.max}° / ${m.min}°`}</Text>
         </VStack>
-      </HStack> : null}
+      </HStack></Link> : null}
     </VStack>
     <ZStack frame={{ width: 124, maxHeight: 'infinity' }}>
       <RoundedRectangle fill={C.riquadro} cornerRadius={16} />
       <VStack spacing={3} padding={8}>
+        <Link url={e ? apriImpegno(e) : 'calshow://'}><VStack spacing={3}>
         {e ? <Gauge value={pieno} min={0} max={1} gaugeStyle="accessoryCircularCapacity" tint={e.colore}
           label={<Text>Prossimo</Text>}
           currentValueLabel={<Text font={11} fontWeight="bold" foregroundStyle={C.testo}>{mancano(e)}</Text>} />
           : <Image systemName="checkmark.circle" font={30} foregroundStyle={C.tenue} />}
         <Text font={11} fontWeight="bold" foregroundStyle={C.testo} lineLimit={1} minScaleFactor={0.8}>{e ? e.titolo : 'Niente in vista'}</Text>
         <Text font={10} foregroundStyle={C.tenue} lineLimit={1}>{e ? quando(e) : ' '}</Text>
+        </VStack></Link>
         <HStack spacing={6}>
           <Pulsante icona="chevron.left" intent={CambiaEvento({ delta: -1 })} size={22} />
           <Segui size={22} />
