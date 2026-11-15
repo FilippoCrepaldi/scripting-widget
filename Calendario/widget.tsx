@@ -40,19 +40,24 @@ function Ora({ size }: { size: number }) {
 
 // Ore e minuti grandi, secondi sotto. L'ora che va avanti da sola è un unico testo "12:09:41":
 // lo mostro due volte e lo "ritaglio", una volta tenendo solo ore e minuti, una volta solo i secondi.
-const CIFRA = 0.61, ORAMIN = 2.71 // larghezza di una cifra e di "HH:MM" rispetto alla dimensione del carattere (misurate sul Mac)
-// Mostra solo un pezzo del timer che parte da mezzanotte: l'inizio (HH:MM) o la fine (SS)
-function Ritaglio({ size, larghezza, inizio, colore, peso }: { size: number, larghezza: number, inizio: boolean, colore: string, peso: string }) {
-  return <HStack frame={{ width: larghezza, height: size * 1.2, alignment: inizio ? 'leading' : 'trailing' }} clipped>
-    <DateLabel date={mezzanotte} style="timer" font={size} fontWeight={peso as any} monospacedDigit
-      foregroundStyle={colore} lineLimit={1} fixedSize multilineTextAlignment={inizio ? 'leading' : 'trailing'} />
+// Mostra solo un pezzo del timer che parte da mezzanotte. Niente misure a occhio: un testo invisibile
+// con le stesse cifre ("15:00" o "00") decide la larghezza, e il timer ci viene disegnato sopra e ritagliato.
+function Ritaglio({ size, inizio, colore, peso }: { size: number, inizio: boolean, colore: string, peso: string }) {
+  const sagoma = inizio ? `${ora.getHours()}:00` : '00'
+  return <HStack clipped>
+    <Text font={size} fontWeight={peso as any} monospacedDigit foregroundStyle="clear" lineLimit={1} fixedSize
+      overlay={{
+        alignment: inizio ? 'leading' : 'trailing',
+        content: <DateLabel date={mezzanotte} style="timer" font={size} fontWeight={peso as any} monospacedDigit
+          foregroundStyle={colore} lineLimit={1} fixedSize multilineTextAlignment={inizio ? 'leading' : 'trailing'} />,
+      }}>{sagoma}</Text>
   </HStack>
 }
 function OraESecondi({ size, sec }: { size: number, sec: number }) {
   return <VStack alignment="leading" spacing={0}>
-    <Ritaglio size={size} larghezza={size * ORAMIN} inizio colore={C.testo} peso="bold" />
+    <Ritaglio size={size} inizio colore={C.testo} peso="bold" />
     <HStack spacing={4} alignment="lastTextBaseline">
-      <Ritaglio size={sec} larghezza={sec * 2 * CIFRA + 1} inizio={false} colore={C.rosso} peso="semibold" />
+      <Ritaglio size={sec} inizio={false} colore={C.rosso} peso="semibold" />
       <Text font={sec * 0.6} fontWeight="semibold" foregroundStyle={C.tenue}>sec</Text>
     </HStack>
   </VStack>
@@ -405,10 +410,12 @@ async function disegna() {
     ? (p === 5 ? 5 : 4)
     : fam === 'systemMedium' ? ([1, 2, 3].includes(p) ? p : 2) : 0
 
-  // Si aggiorna ogni 15 minuti e sempre a mezzanotte
+  // Si aggiorna ogni 15 minuti, alle 10:00 (l'ora passa da 1 a 2 cifre) e a mezzanotte
   const tra15 = new Date(Date.now() + 15 * 60 * 1000)
+  const dieci = new Date(mezzanotte); dieci.setHours(10)
   const domani = inizioGiorno(ora, 1)
-  const ricarica = { policy: 'after', date: tra15 < domani ? tra15 : domani } as any
+  const prossimaRicarica = [tra15, domani, ...(ora < dieci ? [dieci] : [])].sort((x, y) => x.getTime() - y.getTime())[0]
+  const ricarica = { policy: 'after', date: prossimaRicarica } as any
 
   if (fam === 'accessoryRectangular' || fam === 'accessoryInline') {
     const [prossimo] = await prossimi(1)
