@@ -184,9 +184,9 @@ function ContoAllaRovescia({ m, lista, indice }: { m: Meteo | null, lista: Ev[],
         <Text font={11} fontWeight="bold" foregroundStyle={C.testo} lineLimit={1} minScaleFactor={0.8}>{e ? e.titolo : 'Niente in vista'}</Text>
         <Text font={10} foregroundStyle={C.tenue} lineLimit={1}>{e ? quando(e) : ' '}</Text>
         <HStack spacing={6}>
-          <Pulsante icona="chevron.left" intent={CambiaEvento(-1)} size={22} />
+          <Pulsante icona="chevron.left" intent={CambiaEvento({ delta: -1 })} size={22} />
           <Segui size={22} />
-          <Pulsante icona="chevron.right" intent={CambiaEvento(1)} size={22} />
+          <Pulsante icona="chevron.right" intent={CambiaEvento({ delta: 1 })} size={22} />
         </HStack>
       </VStack>
     </ZStack>
@@ -209,8 +209,8 @@ function Striscia({ m, lista, giorno, larghezza }: { m: Meteo | null, lista: Ev[
       <VStack alignment="trailing" spacing={4}>
         <DataPiccola giorno={giorno} lunga={false} />
         <HStack spacing={5}>
-          <Pulsante icona="chevron.left" intent={CambiaGiorno(-1)} size={22} />
-          <Pulsante icona="chevron.right" intent={CambiaGiorno(1)} size={22} />
+          <Pulsante icona="chevron.left" intent={CambiaGiorno({ delta: -1 })} size={22} />
+          <Pulsante icona="chevron.right" intent={CambiaGiorno({ delta: 1 })} size={22} />
           <Nuovo giorno={giorno} size={22} />
         </HStack>
       </VStack>
@@ -271,8 +271,8 @@ function Cruscotto({ m, lista, prom, giorno, larghezza }: { m: Meteo | null, lis
       <DataPiccola giorno={giorno} lunga={false} />
       <Spacer />
       <HStack spacing={6}>
-        <Pulsante icona="chevron.left" intent={CambiaGiorno(-1)} />
-        <Pulsante icona="chevron.right" intent={CambiaGiorno(1)} />
+        <Pulsante icona="chevron.left" intent={CambiaGiorno({ delta: -1 })} />
+        <Pulsante icona="chevron.right" intent={CambiaGiorno({ delta: 1 })} />
         <Nuovo giorno={giorno} />
       </HStack>
     </HStack>
@@ -283,7 +283,7 @@ function Cruscotto({ m, lista, prom, giorno, larghezza }: { m: Meteo | null, lis
     {prom.length ? <VStack alignment="leading" spacing={5}>
       <RoundedRectangle fill={C.linea} frame={{ width: larghezza, height: 1 }} />
       <HStack spacing={14}>
-        {prom.slice(0, 2).map(p => <Button buttonStyle="plain" intent={Completa(p.id)}>
+        {prom.slice(0, 2).map(p => <Button buttonStyle="plain" intent={Completa({ id: p.id })}>
           <HStack spacing={5}>
             <Image systemName={p.fatto ? 'checkmark.circle.fill' : 'circle'} font={15} foregroundStyle={p.fatto ? 'systemGreen' : C.tenue} />
             <Text font={12} foregroundStyle={C.testo} lineLimit={1}>{p.titolo}</Text>
@@ -315,7 +315,7 @@ function Settimana({ m, giorni, sel, lista, larghezza }: { m: Meteo | null, gior
         const md = (m?.giorni || []).find(g => g.k === `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`)
         const scelto = o === sel, oggi = o === 0
         const fg = scelto ? 'white' : C.testo
-        return <Button buttonStyle="plain" intent={ScegliGiorno(o)}>
+        return <Button buttonStyle="plain" intent={ScegliGiorno({ offset: o })}>
           <ZStack frame={{ width: cw, height: 70 }}>
             <RoundedRectangle fill={scelto ? C.rosso : (oggi ? C.riquadro : 'clear')} cornerRadius={12} />
             <VStack spacing={2}>

@@ -1,4 +1,5 @@
 // app_intents.tsx – le azioni dei pulsanti (widget, Centro di Controllo)
+// I parametri sono sempre oggetti ({ delta: 1 }): con un numero semplice l'azione non partiva dal widget.
 import { AppIntentManager, AppIntentProtocol, Widget, ControlWidget } from 'scripting'
 import { leggiStato, salvaStato } from './comune'
 // Nota: qui NON si importa live_activity.tsx (il widget importa questo file e la Live Activity va avviata dall'app)
@@ -7,7 +8,7 @@ import { leggiStato, salvaStato } from './comune'
 export const CambiaGiorno = AppIntentManager.register({
   name: 'CambiaGiorno',
   protocol: AppIntentProtocol.AppIntent,
-  perform: async (delta: number) => {
+  perform: async ({ delta }: { delta: number }) => {
     const s = leggiStato()
     s.giorno = delta === 0 ? 0 : Math.max(-30, Math.min(60, s.giorno + delta))
     salvaStato(s)
@@ -19,7 +20,7 @@ export const CambiaGiorno = AppIntentManager.register({
 export const CambiaEvento = AppIntentManager.register({
   name: 'CambiaEvento',
   protocol: AppIntentProtocol.AppIntent,
-  perform: async (delta: number) => {
+  perform: async ({ delta }: { delta: number }) => {
     const s = leggiStato()
     s.evento = Math.max(0, Math.min(5, s.evento + delta))
     salvaStato(s)
@@ -31,7 +32,7 @@ export const CambiaEvento = AppIntentManager.register({
 export const ScegliGiorno = AppIntentManager.register({
   name: 'ScegliGiorno',
   protocol: AppIntentProtocol.AppIntent,
-  perform: async (offset: number) => {
+  perform: async ({ offset }: { offset: number }) => {
     const s = leggiStato()
     s.sel = offset
     salvaStato(s)
@@ -43,7 +44,7 @@ export const ScegliGiorno = AppIntentManager.register({
 export const Completa = AppIntentManager.register({
   name: 'Completa',
   protocol: AppIntentProtocol.AppIntent,
-  perform: async (id: string) => {
+  perform: async ({ id }: { id: string }) => {
     try {
       const r: any = await Reminder.get(id)
       if (r) { r.isCompleted = !r.isCompleted; await r.save() }
