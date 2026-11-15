@@ -75,7 +75,9 @@ function DataPiccola({ giorno = 0, lunga = true }: { giorno?: number, lunga?: bo
   </HStack>
 }
 // Numero di versione piccolo accanto alla data: serve per controllare che il widget usi il codice nuovo (da togliere poi)
-const VERSIONE = 'v1.1.6'
+const VERSIONE = 'v1.1.7'
+// L'app Orologio non si può aprire direttamente da un widget: passa da un Comando Rapido "Apri Orologio" (azione "Apri app" → Orologio)
+const APRI_OROLOGIO = 'shortcuts://run-shortcut?name=' + encodeURIComponent('Apri Orologio')
 
 function Tondo({ icona, rosso = false, size = 26 }: { icona: string, rosso?: boolean, size?: number }) {
   return <ZStack frame={{ width: size, height: size }}>
@@ -168,7 +170,7 @@ function ContoAllaRovescia({ m, lista, indice }: { m: Meteo | null, lista: Ev[],
   const pieno = e ? (e.inizio <= Date.now() ? 1 : Math.max(0.03, 1 - minuti / 240)) : 0 // l'anello si riempie nelle ultime 4 ore
   return <HStack spacing={12} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
     <VStack alignment="leading" spacing={0} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
-      <Link url="clock-alarm://">
+      <Link url={APRI_OROLOGIO}>
         <VStack alignment="leading" spacing={0}>
           <DataPiccola lunga={false} />
           <OraESecondi size={46} sec={18} />
@@ -466,7 +468,7 @@ async function disegna() {
   }
 
   Widget.present(
-    <VStack widgetBackground={{ light: '#FFFFFF', dark: '#1C1C1E' }} widgetURL={layout === 2 ? 'clock-alarm://' : 'calshow://'} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
+    <VStack widgetBackground={{ light: '#FFFFFF', dark: '#1C1C1E' }} widgetURL={layout === 2 ? APRI_OROLOGIO : 'calshow://'} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
       <VStack padding={16} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
         {corpo}
       </VStack>
