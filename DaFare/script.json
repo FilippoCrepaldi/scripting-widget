@@ -1,7 +1,7 @@
 {
   "name": "DaFare",
   "color": "rgba(15,63,124,1)",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Lista delle cose da fare dai riepiloghi acquisti del mattino e della sera, da spuntare dal widget",
   "localizedNames": null,
   "runInApp": false,

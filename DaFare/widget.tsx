@@ -149,7 +149,9 @@ async function disegna() {
   }
   Widget.present(
     <VStack widgetBackground={C.sfondo} widgetURL={APRI_LISTA} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
-      {corpo}
+      <VStack padding={14} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
+        {corpo}
+      </VStack>
     </VStack>,
     { policy: 'after', date: new Date(Date.now() + 30 * 60 * 1000) } as any
   )
