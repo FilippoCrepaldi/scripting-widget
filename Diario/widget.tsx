@@ -4,8 +4,9 @@
 import { VStack, HStack, ZStack, Text, Spacer, Circle, Capsule, RoundedRectangle, Image, Link, Button, Widget } from 'scripting'
 import { AggiornaDiario } from './app_intents'
 import { carica as caricaDati, urlDati, DIARIO, Dati, Voce, oggi } from './comune'
-// i tasti aprono il diario sulla schermata giusta (#apri=...)
-const apri = (k: string) => DIARIO + "#apri=" + k
+// Tutti i tocchi aprono il diario. Provato il 15/11: un "#apri=..." in fondo all'indirizzo NON arriva al diario
+// (l'artefatto gira in un riquadro che non vede l'indirizzo), quindi per ora niente schermata specifica.
+const apri = (_k: string) => DIARIO
 
 // ---------- colori ----------
 // colori di sistema: si adattano da soli a chiaro/scuro e allo sfondo sfocato
@@ -91,7 +92,10 @@ function Cibo({ d }: { d: Dati }) {
   const c = d.cibo && d.cibo.data === oggi() ? d.cibo : { ...(d.cibo || PROVA.cibo!), kcal: 0, c: 0, p: 0, f: 0 }
   const macro = [["Carbo", c.c, c.c_obj, K.carb], ["Proteine", c.p, c.p_obj, K.prot], ["Grassi", c.f, c.f_obj, K.fat]] as [string, number, number, string][]
   const tasti: [string, string][] = [["photo.badge.plus", "foto"], ["camera", "camera"], ["barcode.viewfinder", "barcode"], ["character.cursor.ibeam", "scrivi"], ["bubble.left.and.text.bubble.right", "coach"]]
+  // Con un Link nel widget, Scripting ignora il tocco generale (widgetURL): per questo anche la parte alta è un Link
   return <VStack spacing={0} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
+    <Link url={apri("home")} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
+    <VStack spacing={0} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'top' }}>
     <HStack spacing={6} padding={{ top: 12, leading: 12, trailing: 12 }}>
       <Anello size={68} w={8} pct={c.kcal / c.kcal_obj} colore={K.kcal}>
         <VStack spacing={0}>
@@ -108,6 +112,8 @@ function Cibo({ d }: { d: Dati }) {
         </VStack>)}
     </HStack>
     <Spacer />
+    </VStack>
+    </Link>
     <RoundedRectangle fill={K.traccia} frame={{ maxWidth: 'infinity', height: 1 }} />
     <HStack spacing={0} frame={{ height: 40 }}>
       {tasti.map(([ic, k]) =>
