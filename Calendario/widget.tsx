@@ -40,7 +40,7 @@ function Ora({ size }: { size: number }) {
 
 // Ore e minuti grandi, secondi sotto. L'ora che va avanti da sola è un unico testo "12:09:41":
 // lo mostro due volte e lo "ritaglio", una volta tenendo solo ore e minuti, una volta solo i secondi.
-const CIFRA = 0.61, ORAMIN = 2.65 // larghezza di una cifra e di "HH:MM" rispetto alla dimensione del carattere (misurate sul Mac)
+const CIFRA = 0.61, ORAMIN = 2.71 // larghezza di una cifra e di "HH:MM" rispetto alla dimensione del carattere (misurate sul Mac)
 // Mostra solo un pezzo del timer che parte da mezzanotte: l'inizio (HH:MM) o la fine (SS)
 function Ritaglio({ size, larghezza, inizio, colore, peso }: { size: number, larghezza: number, inizio: boolean, colore: string, peso: string }) {
   return <HStack frame={{ width: larghezza, height: size * 1.2, alignment: inizio ? 'leading' : 'trailing' }} clipped>
