@@ -4,7 +4,7 @@
 // in fondo: tocca la spunta verde per toglierla.
 import { VStack, HStack, Text, Image, Spacer, Button, Widget, RoundedRectangle } from 'scripting'
 import { SegnaFatto, CambiaVista, CambiaPagina } from './app_intents'
-import { carica, fatti, pulisci, ordina, tipo, gruppoDi, GRUPPI, urlDati, vista, pagina, APRI_LISTA, Dati, Voce } from './comune'
+import { carica, fatti, pulisci, daInviare, inviaFatti, ordina, tipo, gruppoDi, GRUPPI, urlDati, vista, pagina, APRI_LISTA, Dati, Voce } from './comune'
 
 const C: any = {
   sfondo: { light: '#FFFFFF', dark: '#1C1C1E' },
@@ -202,6 +202,7 @@ function Messaggio({ titolo, testo }: { titolo: string, testo: string }) {
 
 async function disegna() {
   const d = await carica()
+  if (daInviare()) await inviaFatti()   // riprova l'invio delle fatte rimasto indietro
   let corpo
   if (!d) corpo = urlDati()
     ? <Messaggio titolo="Dati non disponibili" testo="Controlla la connessione" />

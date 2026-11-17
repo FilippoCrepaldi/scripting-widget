@@ -55,6 +55,7 @@ export function cambiaFatto(id: string) {
   const f = fatti()
   if (f[id]) delete f[id]; else f[id] = true
   scrivi("dafare-fatti", JSON.stringify(f))
+  segnaDaInviare(id, !!f[id])
 }
 // tiene solo le spunte delle voci ancora presenti nell'ultimo recap
 export function pulisci(d: Dati | null) {
@@ -64,6 +65,53 @@ export function pulisci(d: Dati | null) {
   for (const k of Object.keys(f)) if (!ids.has(k)) { delete f[k]; cambiato = true }
   if (cambiato) scrivi("dafare-fatti", JSON.stringify(f))
 }
+
+// ---------- spunte rimandate al gist (file todo-fatti.json) ----------
+// Il riepilogo del mattino e della sera legge questo file e non ripropone le voci già fatte.
+// L'elenco tiene le voci per 14 giorni anche quando spariscono dal widget, così non tornano.
+const FILE_FATTI = "todo-fatti.json"
+type Inviata = { id: string, testo: string, tipo: string, fatto_il: string }
+function inviate(): Record<string, Inviata> {
+  try { return JSON.parse(leggi("dafare-inviate") || "{}") } catch (e) { return {} }
+}
+function segnaDaInviare(id: string, fatto: boolean) {
+  const m = inviate()
+  if (fatto) {
+    let v: Voce | undefined
+    try { v = (JSON.parse(leggi("dafare-dati") || "{}").voci || []).find((x: Voce) => x.id === id) } catch (e) { }
+    m[id] = { id, testo: v?.testo || "", tipo: v?.tipo || "", fatto_il: new Date().toISOString() }
+  } else delete m[id]
+  const limite = Date.now() - 14 * 86400000
+  for (const k of Object.keys(m)) if (new Date(m[k].fatto_il).getTime() < limite) delete m[k]
+  scrivi("dafare-inviate", JSON.stringify(m))
+  scrivi("dafare-sync", "da inviare")
+}
+// id del gist preso dall'indirizzo dei dati (api.github.com/gists/<id> oppure gist.githubusercontent.com/<utente>/<id>/raw/...)
+export function idGist(): string {
+  const u = urlDati()
+  const m = u.match(/gists\/([0-9a-f]{20,})/i) || u.match(/gist\.github(?:usercontent)?\.com\/[^/]+\/([0-9a-f]{20,})/i)
+  return m ? m[1] : ""
+}
+export function token(): string { return (leggi("dafare-token") || "").trim() }
+export function statoSync(): string { return leggi("dafare-sync") || "mai" }
+// manda l'elenco delle fatte al gist; se manca la rete riprova al prossimo tocco o aggiornamento
+export async function inviaFatti(): Promise<boolean> {
+  const id = idGist(), t = token()
+  if (!id || !t) { scrivi("dafare-sync", t ? "indirizzo del gist non valido" : "manca il token"); return false }
+  const corpo = { aggiornato: new Date().toISOString(), fatte: Object.values(inviate()) }
+  const ok = await conLimite((async () => {
+    const r = await fetch(`https://api.github.com/gists/${id}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${t}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+      body: JSON.stringify({ files: { [FILE_FATTI]: { content: JSON.stringify(corpo, null, 1) } } }),
+    } as any)
+    return r.ok ? true : (scrivi("dafare-sync", `errore ${r.status}`), false)
+  })(), 8000, false)
+  if (ok) scrivi("dafare-sync", "inviato " + new Date().toLocaleString("it-IT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))
+  else if (statoSync() === "da inviare") scrivi("dafare-sync", "da inviare (rete assente)")
+  return ok
+}
+export function daInviare(): boolean { return statoSync().startsWith("da inviare") }
 
 // ---------- tipi di voce ----------
 export const TIPI: any = {

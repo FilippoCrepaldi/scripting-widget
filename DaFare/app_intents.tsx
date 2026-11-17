@@ -1,6 +1,6 @@
 // Tasti del widget. I parametri sono sempre oggetti con un valore: SegnaFatto({ id: "..." })
 import { AppIntentManager, AppIntentProtocol } from "scripting"
-import { cambiaFatto, pausa, ricaricaWidget, scrivi, scriviVista, scriviPagina, pagina } from "./comune"
+import { cambiaFatto, inviaFatti, pausa, ricaricaWidget, scrivi, scriviVista, scriviPagina, pagina } from "./comune"
 
 // segna / toglie la spunta a una voce
 export const SegnaFatto = AppIntentManager.register({
@@ -11,6 +11,7 @@ export const SegnaFatto = AppIntentManager.register({
     scrivi("dafare-tocco", new Date().toLocaleTimeString("it-IT"))   // prova che il tasto ha funzionato
     await pausa(500)   // la memoria condivisa scrive in background
     ricaricaWidget()
+    await inviaFatti()   // rimanda le fatte al gist (se c'è il token)
   }
 })
 
