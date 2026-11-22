@@ -84,7 +84,7 @@ export async function promemoria(n = 3): Promise<Prom[]> {
 
 // ---------- meteo (tenuto in memoria 30 minuti) ----------
 export type Meteo = { temp: number, icona: string, testo: string, max: number, min: number,
-  ore: { h: number, t: number, icona: string }[], giorni: { k: string, max: number, min: number, icona: string }[],
+  ore: { h: number, t: number, icona: string }[], giorni: { k: string, max: number, min: number, icona: string, p?: number }[],
   prossime?: { h: number, t: number, icona: string, cond: string, p?: number }[], v?: number,
   orarie?: Record<string, { h: number, t: number, icona: string, cond: string, p: number }[]> } // tutte le ore dei prossimi 7 giorni, per giorno // p = probabilità di pioggia 0–1 // le prossime ore da adesso (anche dopo mezzanotte)
 const COND: Record<string, string> = {
@@ -108,7 +108,7 @@ function num(x: any): number {
 }
 export async function meteo(): Promise<Meteo | null> {
   const cache = Storage.get<{ t: number, m: Meteo }>('meteo')
-  if (cache && cache.m && cache.m.prossime && cache.m.v === 3 && Date.now() - cache.t < 30 * 60 * 1000) return cache.m
+  if (cache && cache.m && cache.m.prossime && cache.m.v === 4 && Date.now() - cache.t < 30 * 60 * 1000) return cache.m
   try {
     const pos = Storage.get<{ latitude: number, longitude: number }>('posizione')
     if (!pos) return null // la posizione si salva aprendo lo script (▶)
@@ -120,14 +120,14 @@ export async function meteo(): Promise<Meteo | null> {
       Weather.requestDailyForecast(loc, { startDate: inizioGiorno(ora, -6), endDate: inizioGiorno(ora, 8) }),
     ]), 6000, [null, null, null])
     if (!c) return cache ? cache.m : null
-    const giorni = (d?.forecast || []).map((x: any) => ({ k: chiave(new Date(x.date)), max: Math.round(num(x.highTemperature)), min: Math.round(num(x.lowTemperature)), icona: x.symbolName || 'cloud' }))
+    const giorni = (d?.forecast || []).map((x: any) => ({ k: chiave(new Date(x.date)), max: Math.round(num(x.highTemperature)), min: Math.round(num(x.lowTemperature)), icona: x.symbolName || 'cloud', p: num(x.precipitationChance) }))
     const oggi = giorni.find((g: any) => g.k === chiave(ora))
     const m: Meteo = {
       temp: Math.round(num(c.temperature)), icona: c.symbolName || 'cloud', testo: COND[c.condition] || '',
       max: oggi ? oggi.max : Math.round(num(c.temperature)), min: oggi ? oggi.min : Math.round(num(c.temperature)),
       ore: (h?.forecast || []).filter((x: any) => new Date(x.date) < inizioGiorno(ora, 1)).map((x: any) => ({ h: new Date(x.date).getHours(), t: Math.round(num(x.temperature)), icona: x.symbolName || 'cloud' })),
       prossime: (h?.forecast || []).filter((x: any) => new Date(x.date).getTime() > ora.getTime()).slice(0, 6).map((x: any) => ({ h: new Date(x.date).getHours(), t: Math.round(num(x.temperature)), icona: x.symbolName || 'cloud', cond: String(x.condition || ''), p: num(x.precipitationChance) })),
-      giorni, v: 3, orarie: {},
+      giorni, v: 4, orarie: {},
     }
     for (const x of (h?.forecast || [])) {
       const d = new Date(x.date), k = chiave(d)
