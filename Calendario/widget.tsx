@@ -1,14 +1,15 @@
 // widget.tsx – Calendario: ora, data, meteo, impegni e pulsanti
 // Parametro del widget: 1 Ora gigante · 2 Conto alla rovescia · 3 Striscia · 4 Cruscotto · 5 Settimana
+// Grande: senza parametro il nuovo "B" (impegni con settimana / meteo) · 6 il vecchio "A" (fino alla 1.5.1)
 import {
   VStack, HStack, ZStack, Text, Image, Spacer, DateLabel, Button, Link, Gauge,
   RoundedRectangle, Rectangle, Circle, Widget,
 } from 'scripting'
 import {
   GIORNI, GG, G1, MESI, MM, NOME_SCRIPT, inizioGiorno, hhmm, leggiStato,
-  eventiTra, prossimi, promemoria, meteo, salvaQuanti, precipitazione, type Ev, type Meteo, type Prom,
+  eventiTra, prossimi, promemoria, meteo, salvaQuanti, precipitazione, chiave, type Ev, type Meteo, type Prom,
 } from './comune'
-import { CambiaGiorno, CambiaEvento, ScegliGiorno, Completa } from './app_intents'
+import { CambiaGiorno, CambiaEvento, ScegliGiorno, Completa, CambiaSettimana, CambiaVista } from './app_intents'
 
 // Colori di sistema: si leggono bene sia sullo sfondo sfocato sia in chiaro/scuro
 const C = {
@@ -181,6 +182,167 @@ function OraGigante({ m, prossimo }: { m: Meteo | null, prossimo: Ev | null }) {
 
 // ---------- 2. Ora, meteo e conto alla rovescia (media) ----------
 const maiuscola = (t: string) => t ? t.charAt(0).toUpperCase() + t.slice(1) : t
+
+// ---------- 7. Grande "B" (1.6.0): in alto ora e meteo; sotto impegni con settimana, oppure il meteo ----------
+const TINTA_BLU = 'rgba(10,132,255,0.15)'
+function titoloGiorno(o: number) {
+  const d = inizioGiorno(ora, o)
+  return o === 0 ? 'OGGI' : o === 1 ? 'DOMANI' : o === -1 ? 'IERI' : `${GIORNI[d.getDay()].toUpperCase()} ${d.getDate()}`
+}
+function TestaB({ m, vista }: { m: Meteo | null, vista: string }) {
+  return <VStack alignment="leading" spacing={0}>
+    <Link url={APRI_OROLOGIO}><DataPiccola lunga /></Link>
+    <HStack alignment="top" spacing={8}>
+      <Link url={APRI_OROLOGIO}><OraESecondi size={60} sec={18} /></Link>
+      <Spacer />
+      {/* tocco sul meteo = passa alla vista meteo (e ritorno) */}
+      {m ? <Button buttonStyle="plain" intent={CambiaVista({ vista: vista === 'meteo' ? 'cal' : 'meteo' })}>
+        <VStack alignment="trailing" spacing={1} padding={{ top: 8 }}>
+          <HStack spacing={6}>
+            <Image systemName={m.icona} font={24} symbolRenderingMode="multicolor" foregroundStyle={C.tenue} />
+            <Text font={30} fontWeight="light" foregroundStyle={C.testo}>{`${m.temp}°`}</Text>
+          </HStack>
+          <Text font={12} fontWeight="semibold" foregroundStyle={C.testo} lineLimit={1}>{m.testo || ' '}</Text>
+          <Text font={11} foregroundStyle={C.tenue} lineLimit={1}>{`↑${m.max}° ↓${m.min}°`}</Text>
+        </VStack>
+      </Button> : null}
+    </HStack>
+  </VStack>
+}
+function ImpegniB({ inizio, sel, conta, lista, indice, larghezza }: { inizio: number, sel: number, conta: Record<number, number>, lista: Ev[], indice: number, larghezza: number }) {
+  const RIGA = 30, PER_PAGINA = 4
+  const cw = Math.floor((larghezza - 6 * 2) / 7)
+  const scelta = Math.min(indice, Math.max(0, lista.length - 1))
+  const inizioFin = Math.floor(scelta / PER_PAGINA) * PER_PAGINA
+  const finestra = lista.slice(inizioFin, inizioFin + PER_PAGINA)
+  const colore = (lista[scelta] && lista[scelta].colore) || C.rosso
+  const linea = <Rectangle fill={C.linea} frame={{ maxWidth: 'infinity', minHeight: 0.5, maxHeight: 0.5 }} />
+  return <VStack alignment="leading" spacing={0} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
+    {/* settimana: tocco su un giorno = i suoi impegni */}
+    <HStack spacing={2} padding={{ bottom: 4 }}>
+      {[0, 1, 2, 3, 4, 5, 6].map(k => {
+        const o = inizio + k, d = inizioGiorno(ora, o), su = o === sel, oggi = o === 0
+        const fg = su ? 'white' : (oggi ? C.rosso : C.testo)
+        return <Button buttonStyle="plain" intent={ScegliGiorno({ offset: o })}>
+          <ZStack frame={{ width: cw, height: 44 }}>
+            <RoundedRectangle fill={su ? C.rosso : 'clear'} cornerRadius={10} />
+            <VStack spacing={1}>
+              <Text font={10} fontWeight="semibold" foregroundStyle={su ? 'white' : C.tenue}>{G1[d.getDay()]}</Text>
+              <Text font={15} fontWeight="bold" foregroundStyle={fg}>{String(d.getDate())}</Text>
+              <Circle fill={conta[o] ? (su ? 'white' : 'systemBlue') : 'clear'} frame={{ width: 4, height: 4 }} />
+            </VStack>
+          </ZStack>
+        </Button>
+      })}
+    </HStack>
+    <Text font={11} fontWeight="bold" foregroundStyle={colore} padding={{ bottom: 3 }}>
+      {`${titoloGiorno(sel)} · ${lista.length ? lista.length + (lista.length === 1 ? ' impegno' : ' impegni') : 'libero'}`}
+    </Text>
+    {/* impegni del giorno scelto: tocco = apre l'impegno, ↑ ↓ scelgono quello per la campanella */}
+    {[0, 1, 2, 3].map(k => {
+      const r = finestra[k]
+      if (!r) return <VStack spacing={0} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
+        {linea}
+        <HStack frame={{ maxWidth: 'infinity', minHeight: RIGA, maxHeight: RIGA, alignment: 'leading' }}>
+          {k === 0 && !lista.length ? <Text font={12} foregroundStyle={C.tenue}>Niente in programma</Text> : <Spacer />}
+        </HStack>
+      </VStack>
+      const su = inizioFin + k === scelta
+      return <Link url={apriImpegno(r)}>
+        <VStack spacing={0} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
+          {linea}
+          <HStack spacing={7} frame={{ maxWidth: 'infinity', minHeight: RIGA, maxHeight: RIGA, alignment: 'leading' }}>
+            <RoundedRectangle fill={su ? r.colore : 'systemGray3'} cornerRadius={1.5} frame={{ width: 3, height: RIGA - 8 }} />
+            <VStack alignment="leading" spacing={0} frame={{ maxWidth: 'infinity', alignment: 'leading' }}>
+              <Text font={12} fontWeight={su ? 'bold' : 'medium'} foregroundStyle={C.testo} lineLimit={1}>{maiuscola(r.titolo)}</Text>
+              <Text font={10} fontWeight={su ? 'semibold' : 'regular'} foregroundStyle={su ? r.colore : C.tenue} lineLimit={1}>{quando(r)}</Text>
+            </VStack>
+          </HStack>
+        </VStack>
+      </Link>
+    })}
+    <Spacer />
+    <HStack spacing={7}>
+      <Pulsante icona="chevron.left" intent={CambiaSettimana({ delta: -1 })} size={22} />
+      <Pulsante icona="chevron.right" intent={CambiaSettimana({ delta: 1 })} size={22} />
+      <Spacer />
+      <Pulsante icona="chevron.up" intent={CambiaEvento({ delta: -1 })} size={22} />
+      <Segui size={22} e={lista[scelta] || null} />
+      <Pulsante icona="chevron.down" intent={CambiaEvento({ delta: 1 })} size={22} />
+      <Nuovo giorno={sel} size={22} />
+    </HStack>
+  </VStack>
+}
+function MeteoB({ m, larghezza }: { m: Meteo | null, larghezza: number }) {
+  if (!m) return <VStack frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
+    <Text font={12} foregroundStyle={C.tenue}>Meteo non disponibile: apri lo script (▶) per salvare la posizione</Text>
+    <Spacer />
+    <HStack><Spacer /><Pulsante icona="calendar" intent={CambiaVista({ vista: 'cal' })} size={24} /></HStack>
+  </VStack>
+  const ore = (m.prossime || []).slice(0, 5)
+  const pg = (m.prossime || []).find(o => precipitazione(o.cond) || (o.p || 0) >= 0.5)
+  const cw = Math.floor((larghezza - 4 * 5) / 6)
+  const giorni = [1, 2, 3, 4, 5, 6].map(o => {
+    const d = inizioGiorno(ora, o)
+    return { d, g: (m.giorni || []).find(x => x.k === chiave(d)) }
+  })
+  const colonna = (h: string, icona: string, t: number, p: number, forte: boolean) =>
+    <VStack spacing={2} frame={{ maxWidth: 'infinity' }}>
+      <Text font={12} fontWeight={forte ? 'bold' : 'regular'} foregroundStyle={C.testo}>{h}</Text>
+      <Image systemName={icona} font={20} symbolRenderingMode="multicolor" foregroundStyle={C.tenue} frame={{ height: 24 }} />
+      <Text font={14} fontWeight={forte ? 'bold' : 'semibold'} foregroundStyle={C.testo}>{`${t}°`}</Text>
+      <Text font={10} fontWeight="semibold" foregroundStyle="systemBlue">{p >= 0.1 ? `${Math.round(p * 100)}%` : ' '}</Text>
+    </VStack>
+  return <VStack alignment="leading" spacing={8} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
+    {/* oggi, in evidenza: tocco = app Meteo */}
+    <Link url="weather://">
+      <ZStack frame={{ maxWidth: 'infinity' }}>
+        <RoundedRectangle fill={TINTA_BLU} cornerRadius={14} />
+        <VStack spacing={4} padding={{ top: 8, bottom: 6, horizontal: 6 }}>
+          <HStack padding={{ horizontal: 4 }}>
+            <Text font={12} fontWeight="bold" foregroundStyle={C.testo}>Oggi</Text>
+            <Spacer />
+            {pg ? <HStack spacing={3}>
+              <Image systemName="umbrella.fill" font={11} foregroundStyle="systemBlue" />
+              <Text font={11} fontWeight="semibold" foregroundStyle="systemBlue">{`${precipitazione(pg.cond) || 'pioggia'} dalle ${pg.h}`}</Text>
+            </HStack> : null}
+          </HStack>
+          <HStack spacing={0}>
+            {colonna('Ora', m.icona, m.temp, 0, true)}
+            {ore.map(o => colonna(String(o.h), o.icona, o.t, o.p || 0, false))}
+          </HStack>
+        </VStack>
+      </ZStack>
+    </Link>
+    {/* prossimi 6 giorni, piccoli */}
+    <Link url="weather://">
+      <HStack spacing={4}>
+        {giorni.map(({ d, g }) => <ZStack frame={{ width: cw, height: 58 }}>
+          <RoundedRectangle fill={C.riquadro} cornerRadius={8} />
+          <VStack spacing={2}>
+            <Text font={10} fontWeight="semibold" foregroundStyle={C.tenue}>{GG[d.getDay()]}</Text>
+            <Image systemName={g ? g.icona : 'questionmark'} font={13} symbolRenderingMode="multicolor" foregroundStyle={C.tenue} frame={{ height: 16 }} />
+            <HStack spacing={2}>
+              <Text font={10} fontWeight="semibold" foregroundStyle={C.testo}>{g ? `${g.max}°` : '–'}</Text>
+              <Text font={10} foregroundStyle={C.tenue}>{g ? `${g.min}°` : ''}</Text>
+            </HStack>
+          </VStack>
+        </ZStack>)}
+      </HStack>
+    </Link>
+    <Spacer />
+    <HStack><Spacer /><Pulsante icona="calendar" intent={CambiaVista({ vista: 'cal' })} size={24} /></HStack>
+  </VStack>
+}
+function GrandeB(p: { m: Meteo | null, vista: string, inizio: number, sel: number, conta: Record<number, number>, lista: Ev[], indice: number, larghezza: number }) {
+  return <VStack alignment="leading" spacing={6} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
+    <TestaB m={p.m} vista={p.vista} />
+    <Rectangle fill={C.linea} frame={{ maxWidth: 'infinity', minHeight: 1, maxHeight: 1 }} />
+    {p.vista === 'meteo' && p.m
+      ? <MeteoB m={p.m} larghezza={p.larghezza} />
+      : <ImpegniB inizio={p.inizio} sel={p.sel} conta={p.conta} lista={p.lista} indice={p.indice} larghezza={p.larghezza} />}
+  </VStack>
+}
 
 // ---------- 6. Grande "A": ora e meteo in alto, 6 ore, 4 impegni, tasti in basso a destra ----------
 function GrandeA({ m, lista, indice }: { m: Meteo | null, lista: Ev[], indice: number }) {
@@ -534,7 +696,7 @@ async function disegna() {
   const st = leggiStato()
   const p = parseInt(String(Widget.parameter || '').replace(/["'\s]/g, ''), 10)
   const layout = fam === 'systemLarge' || fam === 'systemExtraLarge'
-    ? (p === 4 || p === 5 ? p : 6) // 6 = grande "A" (predefinito)
+    ? (p === 4 || p === 5 || p === 6 ? p : 7) // 7 = grande "B" (predefinito), 6 = il vecchio grande "A"
     : fam === 'systemMedium' ? ([1, 2, 3].includes(p) ? p : 2) : 0
 
   // Si aggiorna ogni 15 minuti, all'una (l'iPhone torna a scrivere l'ora), alle 10:00 (l'ora passa da 1 a 2 cifre) e a mezzanotte
@@ -573,6 +735,20 @@ async function disegna() {
     corpo = <Cruscotto m={m} lista={l || []} prom={pr} giorno={st.giorno} larghezza={L} />
   } else if (layout === 6) {
     corpo = <GrandeA m={m} lista={vicini} indice={st.evento} />
+  } else if (layout === 7) {
+    // settimana mostrata (da oggi, a blocchi di 7 giorni) e giorno scelto dentro la settimana
+    const da0 = (st.sett || 0) * 7
+    const sel = st.sel >= da0 && st.sel < da0 + 7 ? st.sel : da0
+    const tutti = await eventiTra(inizioGiorno(ora, da0), inizioGiorno(ora, da0 + 7)) || []
+    const conta: Record<number, number> = {}
+    for (const e of tutti) {
+      const o = Math.round((inizioGiorno(new Date(e.inizio)).getTime() - mezzanotte.getTime()) / 86400000)
+      conta[o] = (conta[o] || 0) + 1
+    }
+    const da = inizioGiorno(ora, sel).getTime(), a = inizioGiorno(ora, sel + 1).getTime()
+    const lista = tutti.filter(e => e.inizio >= da && e.inizio < a)
+    salvaQuanti(lista.length) // le frecce ↑ ↓ si fermano all'ultimo impegno del giorno
+    corpo = <GrandeB m={m} vista={st.vista || 'cal'} inizio={da0} sel={sel} conta={conta} lista={lista} indice={st.evento} larghezza={L} />
   } else {
     const tutti = await eventiTra(inizioGiorno(ora, -2), inizioGiorno(ora, 5)) || []
     const giorni: Record<number, number> = {}
@@ -585,7 +761,7 @@ async function disegna() {
   }
 
   Widget.present(
-    <VStack widgetBackground={{ light: '#FFFFFF', dark: '#1C1C1E' }} widgetURL={layout === 2 || layout === 6 ? APRI_OROLOGIO : 'calshow://'} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
+    <VStack widgetBackground={{ light: '#FFFFFF', dark: '#1C1C1E' }} widgetURL={layout === 2 || layout === 6 || layout === 7 ? APRI_OROLOGIO : 'calshow://'} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
       <VStack padding={16} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
         {corpo}
       </VStack>

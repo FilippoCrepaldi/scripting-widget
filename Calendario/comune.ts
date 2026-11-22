@@ -20,7 +20,7 @@ export function chiave(d: Date) { return `${d.getFullYear()}-${d.getMonth() + 1}
 export function hhmm(d: Date) { return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
 
 // ---------- stato dei pulsanti (giorno scelto, impegno scelto, vista) ----------
-export type Stato = { data: string, giorno: number, evento: number, sel: number }
+export type Stato = { data: string, giorno: number, evento: number, sel: number, sett?: number, vista?: string } // sett = settimana mostrata (0 = da oggi), vista = 'cal' o 'meteo' (widget grande B)
 // Lo stato sta nello spazio condiviso di Scripting e come testo: così il pulsante del widget (che gira a parte)
 // e il widget leggono sicuramente lo stesso valore.
 const CHIAVE_STATO = 'calendario-stato'
@@ -85,7 +85,7 @@ export async function promemoria(n = 3): Promise<Prom[]> {
 // ---------- meteo (tenuto in memoria 30 minuti) ----------
 export type Meteo = { temp: number, icona: string, testo: string, max: number, min: number,
   ore: { h: number, t: number, icona: string }[], giorni: { k: string, max: number, min: number, icona: string }[],
-  prossime?: { h: number, t: number, icona: string, cond: string }[] } // le prossime ore da adesso (anche dopo mezzanotte)
+  prossime?: { h: number, t: number, icona: string, cond: string, p?: number }[], v?: number } // p = probabilità di pioggia 0–1 // le prossime ore da adesso (anche dopo mezzanotte)
 const COND: Record<string, string> = {
   clear: 'Sereno', mostlyClear: 'Quasi sereno', partlyCloudy: 'Poco nuvoloso', mostlyCloudy: 'Nuvoloso', cloudy: 'Coperto',
   rain: 'Pioggia', drizzle: 'Pioviggine', heavyRain: 'Pioggia forte', foggy: 'Nebbia', haze: 'Foschia', windy: 'Vento',
@@ -107,7 +107,7 @@ function num(x: any): number {
 }
 export async function meteo(): Promise<Meteo | null> {
   const cache = Storage.get<{ t: number, m: Meteo }>('meteo')
-  if (cache && cache.m && cache.m.prossime && Date.now() - cache.t < 30 * 60 * 1000) return cache.m
+  if (cache && cache.m && cache.m.prossime && cache.m.v === 2 && Date.now() - cache.t < 30 * 60 * 1000) return cache.m
   try {
     const pos = Storage.get<{ latitude: number, longitude: number }>('posizione')
     if (!pos) return null // la posizione si salva aprendo lo script (▶)
@@ -125,8 +125,8 @@ export async function meteo(): Promise<Meteo | null> {
       temp: Math.round(num(c.temperature)), icona: c.symbolName || 'cloud', testo: COND[c.condition] || '',
       max: oggi ? oggi.max : Math.round(num(c.temperature)), min: oggi ? oggi.min : Math.round(num(c.temperature)),
       ore: (h?.forecast || []).filter((x: any) => new Date(x.date) < inizioGiorno(ora, 1)).map((x: any) => ({ h: new Date(x.date).getHours(), t: Math.round(num(x.temperature)), icona: x.symbolName || 'cloud' })),
-      prossime: (h?.forecast || []).filter((x: any) => new Date(x.date).getTime() > ora.getTime()).slice(0, 6).map((x: any) => ({ h: new Date(x.date).getHours(), t: Math.round(num(x.temperature)), icona: x.symbolName || 'cloud', cond: String(x.condition || '') })),
-      giorni,
+      prossime: (h?.forecast || []).filter((x: any) => new Date(x.date).getTime() > ora.getTime()).slice(0, 6).map((x: any) => ({ h: new Date(x.date).getHours(), t: Math.round(num(x.temperature)), icona: x.symbolName || 'cloud', cond: String(x.condition || ''), p: num(x.precipitationChance) })),
+      giorni, v: 2,
     }
     Storage.set('meteo', { t: Date.now(), m })
     return m
