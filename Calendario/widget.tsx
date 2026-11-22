@@ -207,7 +207,7 @@ function TestaB({ m, vista }: { m: Meteo | null, vista: string }) {
   return <VStack alignment="leading" spacing={0}>
     <Link url={APRI_OROLOGIO}><DataPiccola lunga /></Link>
     <HStack alignment="top" spacing={8}>
-      <Link url={APRI_OROLOGIO}><OraESecondi size={60} sec={18} /></Link>
+      <Link url={APRI_OROLOGIO}><OraESecondi size={56} sec={16} /></Link>
       <Spacer />
       {/* tocco sul meteo = passa alla vista meteo (e ritorno) */}
       {m ? <Button buttonStyle="plain" intent={CambiaVista({ vista: vista === 'meteo' ? 'cal' : 'meteo' })}>
@@ -224,7 +224,7 @@ function TestaB({ m, vista }: { m: Meteo | null, vista: string }) {
   </VStack>
 }
 function ImpegniB({ inizio, sel, conta, lista, indice, larghezza }: { inizio: number, sel: number, conta: Record<number, number>, lista: Ev[], indice: number, larghezza: number }) {
-  const RIGA = 30, PER_PAGINA = 4
+  const RIGA = 29, PER_PAGINA = 4
   const cw = Math.floor((larghezza - 6 * 2) / 7)
   const scelta = Math.min(indice, Math.max(0, lista.length - 1))
   const inizioFin = Math.floor(scelta / PER_PAGINA) * PER_PAGINA
@@ -309,17 +309,17 @@ function MeteoB({ m, larghezza, scelto }: { m: Meteo | null, larghezza: number, 
   })
   const colonna = (h: string, icona: string, t: number, p: number, forte: boolean) =>
     <VStack spacing={2} frame={{ maxWidth: 'infinity' }}>
-      <Text font={12} fontWeight={forte ? 'bold' : 'regular'} foregroundStyle={C.testo}>{h}</Text>
-      <HStack frame={{ height: 24 }}><IconaMeteo nome={icona} size={20} /></HStack>
-      <Text font={14} fontWeight={forte ? 'bold' : 'semibold'} foregroundStyle={C.testo}>{`${t}°`}</Text>
-      <Text font={10} fontWeight="semibold" foregroundStyle="systemBlue">{p >= 0.1 ? `${Math.round(p * 100)}%` : ' '}</Text>
+      <Text font={13} fontWeight={forte ? 'bold' : 'regular'} foregroundStyle={C.testo}>{h}</Text>
+      <HStack frame={{ height: 32 }}><IconaMeteo nome={icona} size={26} /></HStack>
+      <Text font={17} fontWeight={forte ? 'bold' : 'semibold'} foregroundStyle={C.testo}>{`${t}°`}</Text>
+      <Text font={11} fontWeight="semibold" foregroundStyle="systemBlue">{p >= 0.1 ? `${Math.round(p * 100)}%` : ' '}</Text>
     </VStack>
-  return <VStack alignment="leading" spacing={8} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
+  return <VStack alignment="leading" spacing={10} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
     {/* oggi, in evidenza: tocco = app Meteo */}
     <Link url="weather://">
       <ZStack frame={{ maxWidth: 'infinity' }}>
         <RoundedRectangle fill={TINTA_BLU} cornerRadius={14} />
-        <VStack spacing={4} padding={{ top: 8, bottom: 6, horizontal: 6 }}>
+        <VStack spacing={6} padding={{ top: 10, bottom: 10, horizontal: 6 }}>
           <HStack padding={{ horizontal: 4 }}>
             <Text font={12} fontWeight="bold" foregroundStyle={C.testo}>{sg === 0 || !gSg ? titolo : `${titolo} · ${gSg.max}° / ${gSg.min}°`}</Text>
             <Spacer />
@@ -341,14 +341,14 @@ function MeteoB({ m, larghezza, scelto }: { m: Meteo | null, larghezza: number, 
       {giorni.map(({ d, g }, i) => {
         const su = i === sg
         return <Button buttonStyle="plain" intent={ScegliGiornoMeteo({ offset: i })}>
-          <ZStack frame={{ width: cw, height: 60 }}>
+          <ZStack frame={{ width: cw, height: 74 }}>
             <RoundedRectangle fill={su ? TINTA_BLU : C.riquadro} cornerRadius={8} />
             <VStack spacing={2}>
-              <Text font={10} fontWeight="bold" foregroundStyle={su ? 'systemBlue' : C.tenue}>{i === 0 ? 'Oggi' : GG[d.getDay()]}</Text>
-              <HStack frame={{ height: 18 }}><IconaMeteo nome={g ? g.icona : 'cloud'} size={15} /></HStack>
+              <Text font={11} fontWeight="bold" foregroundStyle={su ? 'systemBlue' : C.tenue}>{i === 0 ? 'Oggi' : GG[d.getDay()]}</Text>
+              <HStack frame={{ height: 24 }}><IconaMeteo nome={g ? g.icona : 'cloud'} size={19} /></HStack>
               <HStack spacing={2}>
-                <Text font={10} fontWeight="semibold" foregroundStyle={C.testo}>{g ? `${g.max}°` : '–'}</Text>
-                <Text font={10} foregroundStyle={C.tenue}>{g ? `${g.min}°` : ''}</Text>
+                <Text font={12} fontWeight="semibold" foregroundStyle={C.testo}>{g ? `${g.max}°` : '–'}</Text>
+                <Text font={11} foregroundStyle={C.tenue}>{g ? `${g.min}°` : ''}</Text>
               </HStack>
             </VStack>
           </ZStack>
