@@ -3,7 +3,7 @@
 // Grande: senza parametro il nuovo "B" (impegni con settimana / meteo) · 6 il vecchio "A" (fino alla 1.5.1)
 import {
   VStack, HStack, ZStack, Text, Image, Spacer, DateLabel, Button, Link, Gauge,
-  RoundedRectangle, Rectangle, Circle, Widget,
+  RoundedRectangle, Rectangle, Circle, Widget, ProgressView,
 } from 'scripting'
 import {
   GIORNI, GG, G1, MESI, MM, NOME_SCRIPT, inizioGiorno, hhmm, leggiStato,
@@ -203,11 +203,35 @@ function titoloGiorno(o: number) {
   const d = inizioGiorno(ora, o)
   return o === 0 ? 'OGGI' : o === 1 ? 'DOMANI' : o === -1 ? 'IERI' : `${GIORNI[d.getDay()].toUpperCase()} ${d.getDate()}`
 }
+// Anello dei secondi a stecchette (1.7.0, prova). Un widget non si può ridisegnare ogni secondo:
+// si usano anelli a timer che si riempiono da soli, uno per minuto, impilati. Per ogni minuto prima un anello
+// grigio "istantaneo" (copre il rosso del minuto prima), poi uno rosso che si riempie in 60 secondi.
+// Sopra, 30 righe del colore dello sfondo tagliano l'anello in 60 stecchette.
+const MINUTI_ANELLO = 30 // il widget si ricarica ogni 15 minuti: 30 minuti di margine
+const SFONDO = { light: '#FFFFFF', dark: '#1C1C1E' } as any
+function AnelloSecondi({ d }: { d: number }) {
+  const inizioMin = Math.floor(Date.now() / 60000) * 60000
+  const vuoto = <Text>{''}</Text>
+  const strati: any[] = []
+  for (let k = 0; k < MINUTI_ANELLO; k++) {
+    const da = inizioMin + k * 60000
+    strati.push(<ProgressView progressViewStyle="circular" timerFrom={da} timerTo={da + 200} countsDown={false}
+      tint="systemGray4" label={vuoto} currentValueLabel={vuoto} frame={{ width: d, height: d }} />)
+    strati.push(<ProgressView progressViewStyle="circular" timerFrom={da} timerTo={da + 60000} countsDown={false}
+      tint="systemRed" label={vuoto} currentValueLabel={vuoto} frame={{ width: d, height: d }} />)
+  }
+  return <ZStack frame={{ width: d, height: d }}>
+    {strati}
+    {Array.from({ length: 30 }, (_, i) => <Rectangle fill={SFONDO} frame={{ width: 1.6, height: d + 4 }} rotationEffect={i * 6 + 3} />)}
+    <Circle fill={SFONDO} frame={{ width: d - 22, height: d - 22 }} />
+    <OraESecondi size={Math.round(d * 0.27)} sec={12} />
+  </ZStack>
+}
 function TestaB({ m, vista }: { m: Meteo | null, vista: string }) {
   return <VStack alignment="leading" spacing={0}>
     <Link url={APRI_OROLOGIO}><DataPiccola lunga /></Link>
     <HStack alignment="top" spacing={8}>
-      <Link url={APRI_OROLOGIO}><OraESecondi size={60} sec={18} /></Link>
+      <Link url={APRI_OROLOGIO}><AnelloSecondi d={124} /></Link>
       <Spacer />
       {/* tocco sul meteo = passa alla vista meteo (e ritorno) */}
       {m ? <Button buttonStyle="plain" intent={CambiaVista({ vista: vista === 'meteo' ? 'cal' : 'meteo' })}>
