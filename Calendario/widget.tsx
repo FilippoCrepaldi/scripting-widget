@@ -184,8 +184,27 @@ function OraGigante({ m, prossimo }: { m: Meteo | null, prossimo: Ev | null }) {
 const maiuscola = (t: string) => t ? t.charAt(0).toUpperCase() + t.slice(1) : t
 
 // ---------- 7. Grande "B" (1.6.0): in alto ora e meteo; sotto impegni con settimana, oppure il meteo ----------
-const TINTA_BLU = 'rgba(10,132,255,0.15)'
+const TINTA_BLU = 'rgba(10,132,255,0.26)'
 // Icone meteo piene e colorate per tipo: così si capisce subito se piove, c'è sole, nuvole, neve o temporale
+// Emoji di Apple per il meteo (vista meteo): si capisce subito se piove, c'è sole, nuvole, neve o temporale
+function emojiMeteo(nome: string): string {
+  const n = nome || 'cloud'
+  if (/bolt/.test(n)) return '⛈️'
+  if (/snow|sleet|hail|flurr/.test(n)) return '🌨️'
+  if (/sun\.rain|drizzle/.test(n)) return '🌦️'
+  if (/rain/.test(n)) return '🌧️'
+  if (/fog|haze|smoke|dust/.test(n)) return '🌫️'
+  if (/tornado|hurricane/.test(n)) return '🌪️'
+  if (/wind/.test(n)) return '💨'
+  if (/cloud\.sun/.test(n)) return '⛅'
+  if (/cloud\.moon/.test(n)) return '☁️'
+  if (/moon/.test(n)) return '🌙'
+  if (/sun/.test(n)) return '☀️'
+  return '☁️'
+}
+function EmojiMeteo({ nome, size }: { nome: string, size: number }) {
+  return <Text font={size}>{emojiMeteo(nome)}</Text>
+}
 function IconaMeteo({ nome, size }: { nome: string, size: number }) {
   const n = nome || 'cloud'
   const senzaFill = ['wind', 'snowflake', 'tornado', 'hurricane']
@@ -311,7 +330,7 @@ function MeteoB({ m, larghezza, scelto }: { m: Meteo | null, larghezza: number, 
   const colonna = (h: string, icona: string, t: number, p: number, forte: boolean) =>
     <VStack spacing={2} frame={{ maxWidth: 'infinity' }}>
       <Text font={13} fontWeight={forte ? 'bold' : 'regular'} foregroundStyle={C.testo}>{h}</Text>
-      <HStack frame={{ height: 28 }}><IconaMeteo nome={icona} size={24} /></HStack>
+      <HStack frame={{ height: 28 }}><EmojiMeteo nome={icona} size={26} /></HStack>
       <Text font={17} fontWeight={forte ? 'bold' : 'semibold'} foregroundStyle={C.testo}>{`${t}°`}</Text>
       <Text font={11} fontWeight="semibold" foregroundStyle="systemBlue">{p >= 0.1 ? `${Math.round(p * 100)}%` : ' '}</Text>
     </VStack>
@@ -344,10 +363,10 @@ function MeteoB({ m, larghezza, scelto }: { m: Meteo | null, larghezza: number, 
         const su = i === sg
         return <Button buttonStyle="plain" intent={ScegliGiornoMeteo({ offset: i })}>
           <ZStack frame={{ width: cw, height: 80 }}>
-            <RoundedRectangle fill={su ? TINTA_BLU : C.riquadro} cornerRadius={8} />
+            <RoundedRectangle fill={su ? TINTA_BLU : 'systemGray5'} cornerRadius={8} />
             <VStack spacing={2}>
               <Text font={11} fontWeight="bold" foregroundStyle={su ? 'systemBlue' : C.tenue}>{i === 0 ? 'Oggi' : GG[d.getDay()]}</Text>
-              <HStack frame={{ height: 24 }}><IconaMeteo nome={g ? g.icona : 'cloud'} size={19} /></HStack>
+              <HStack frame={{ height: 24 }}><EmojiMeteo nome={g ? g.icona : 'cloud'} size={22} /></HStack>
               <HStack spacing={2}>
                 <Text font={12} fontWeight="semibold" foregroundStyle={C.testo}>{g ? `${g.max}°` : '–'}</Text>
                 <Text font={11} foregroundStyle={C.tenue}>{g ? `${g.min}°` : ''}</Text>
