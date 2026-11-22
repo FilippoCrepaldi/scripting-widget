@@ -32,9 +32,17 @@ function misure() {
 
 // ---------- pezzi ----------
 // Ora viva: un timer che parte da mezzanotte mostra l'ora esatta e va avanti da solo
+// Tra le 00:00 e le 00:59 l'iPhone scrive il timer senza l'ora ("18:41" = 18 min e 41 s):
+// in quella fascia scriviamo noi "0:" davanti, così si legge 0:18:41.
+const notte = ora.getHours() === 0
 function Ora({ size }: { size: number }) {
-  return <DateLabel date={mezzanotte} style="timer" font={size} fontWeight="bold" monospacedDigit
+  const t = <DateLabel date={mezzanotte} style="timer" font={size} fontWeight="bold" monospacedDigit
     foregroundStyle={C.testo} lineLimit={1} minScaleFactor={0.5} />
+  if (!notte) return t
+  return <HStack spacing={0}>
+    <Text font={size} fontWeight="bold" monospacedDigit foregroundStyle={C.testo} lineLimit={1} minScaleFactor={0.5}>0:</Text>
+    {t}
+  </HStack>
 }
 
 
@@ -45,7 +53,8 @@ function Ora({ size }: { size: number }) {
 // Si lascia un piccolo margine dopo l'ultima cifra: lì i ":" dei secondi sono ancora vuoti.
 const ORAMIN = 2.85, CIFRA = 0.62 // misurate sull'iPhone
 function Ritaglio({ size, inizio, colore, peso }: { size: number, inizio: boolean, colore: string, peso: string }) {
-  const larghezza = inizio ? size * (ORAMIN - (ora.getHours() < 10 ? CIFRA : 0)) : size * 2 * CIFRA + 1
+  // Tra le 00:00 e le 00:59 il timer è "MM:SS": all'inizio ci sono solo i minuti (2 cifre), l'ora "0:" la scrive OraESecondi
+  const larghezza = !inizio ? size * 2 * CIFRA + 1 : notte ? size * 2 * CIFRA + 1 : size * (ORAMIN - (ora.getHours() < 10 ? CIFRA : 0))
   // Sulla Home il timer occupa uno spazio molto più largo delle cifre e si mette al centro:
   // gli diamo noi una larghezza fissa e lo allineamo a sinistra (ore) o a destra (secondi), poi ritagliamo.
   const al = inizio ? 'leading' : 'trailing'
@@ -57,7 +66,12 @@ function Ritaglio({ size, inizio, colore, peso }: { size: number, inizio: boolea
 }
 function OraESecondi({ size, sec }: { size: number, sec: number }) {
   return <VStack alignment="leading" spacing={0}>
-    <Ritaglio size={size} inizio colore={C.testo} peso="bold" />
+    {notte
+      ? <HStack spacing={0}>
+          <Text font={size} fontWeight="bold" monospacedDigit foregroundStyle={C.testo} lineLimit={1}>0:</Text>
+          <Ritaglio size={size} inizio colore={C.testo} peso="bold" />
+        </HStack>
+      : <Ritaglio size={size} inizio colore={C.testo} peso="bold" />}
     <HStack spacing={4} alignment="lastTextBaseline">
       <Ritaglio size={sec} inizio={false} colore={C.rosso} peso="semibold" />
       <Text font={sec * 0.6} fontWeight="semibold" foregroundStyle={C.tenue}>sec</Text>
@@ -523,11 +537,12 @@ async function disegna() {
     ? (p === 4 || p === 5 ? p : 6) // 6 = grande "A" (predefinito)
     : fam === 'systemMedium' ? ([1, 2, 3].includes(p) ? p : 2) : 0
 
-  // Si aggiorna ogni 15 minuti, alle 10:00 (l'ora passa da 1 a 2 cifre) e a mezzanotte
+  // Si aggiorna ogni 15 minuti, all'una (l'iPhone torna a scrivere l'ora), alle 10:00 (l'ora passa da 1 a 2 cifre) e a mezzanotte
   const tra15 = new Date(Date.now() + 15 * 60 * 1000)
+  const una = new Date(mezzanotte); una.setHours(1)
   const dieci = new Date(mezzanotte); dieci.setHours(10)
   const domani = inizioGiorno(ora, 1)
-  const prossimaRicarica = [tra15, domani, ...(ora < dieci ? [dieci] : [])].sort((x, y) => x.getTime() - y.getTime())[0]
+  const prossimaRicarica = [tra15, domani, ...(ora < una ? [una] : []), ...(ora < dieci ? [dieci] : [])].sort((x, y) => x.getTime() - y.getTime())[0]
   const ricarica = { policy: 'after', date: prossimaRicarica } as any
 
   if (fam === 'accessoryRectangular' || fam === 'accessoryInline') {
