@@ -9,7 +9,7 @@ import {
   GIORNI, GG, G1, MESI, MM, NOME_SCRIPT, inizioGiorno, hhmm, leggiStato,
   eventiTra, prossimi, promemoria, meteo, salvaQuanti, precipitazione, chiave, type Ev, type Meteo, type Prom,
 } from './comune'
-import { CambiaGiorno, CambiaEvento, ScegliGiorno, Completa, CambiaSettimana, CambiaVista } from './app_intents'
+import { CambiaGiorno, CambiaEvento, ScegliGiorno, Completa, CambiaSettimana, CambiaVista, ScegliGiornoMeteo } from './app_intents'
 
 // Colori di sistema: si leggono bene sia sullo sfondo sfocato sia in chiaro/scuro
 const C = {
@@ -185,6 +185,20 @@ const maiuscola = (t: string) => t ? t.charAt(0).toUpperCase() + t.slice(1) : t
 
 // ---------- 7. Grande "B" (1.6.0): in alto ora e meteo; sotto impegni con settimana, oppure il meteo ----------
 const TINTA_BLU = 'rgba(10,132,255,0.15)'
+// Icone meteo piene e colorate per tipo: così si capisce subito se piove, c'è sole, nuvole, neve o temporale
+function IconaMeteo({ nome, size }: { nome: string, size: number }) {
+  const n = nome || 'cloud'
+  const senzaFill = ['wind', 'snowflake', 'tornado', 'hurricane']
+  const pieno = n.endsWith('.fill') || senzaFill.includes(n) ? n : n + '.fill'
+  const colore = /bolt/.test(n) ? 'systemPurple'
+    : /snow|sleet|hail|snowflake/.test(n) ? 'systemCyan'
+    : /rain|drizzle/.test(n) ? 'systemBlue'
+    : /cloud\.sun|sun\.haze|cloud\.moon/.test(n) ? 'systemOrange'
+    : /sun|sunrise|sunset/.test(n) ? 'systemYellow'
+    : /moon/.test(n) ? 'systemIndigo'
+    : 'systemGray'
+  return <Image systemName={pieno} font={size} symbolRenderingMode="hierarchical" foregroundStyle={colore} />
+}
 function titoloGiorno(o: number) {
   const d = inizioGiorno(ora, o)
   return o === 0 ? 'OGGI' : o === 1 ? 'DOMANI' : o === -1 ? 'IERI' : `${GIORNI[d.getDay()].toUpperCase()} ${d.getDate()}`
@@ -199,7 +213,7 @@ function TestaB({ m, vista }: { m: Meteo | null, vista: string }) {
       {m ? <Button buttonStyle="plain" intent={CambiaVista({ vista: vista === 'meteo' ? 'cal' : 'meteo' })}>
         <VStack alignment="trailing" spacing={1} padding={{ top: 8 }}>
           <HStack spacing={6}>
-            <Image systemName={m.icona} font={24} symbolRenderingMode="multicolor" foregroundStyle={C.tenue} />
+            <IconaMeteo nome={m.icona} size={24} />
             <Text font={30} fontWeight="light" foregroundStyle={C.testo}>{`${m.temp}°`}</Text>
           </HStack>
           <Text font={12} fontWeight="semibold" foregroundStyle={C.testo} lineLimit={1}>{m.testo || ' '}</Text>
@@ -273,23 +287,30 @@ function ImpegniB({ inizio, sel, conta, lista, indice, larghezza }: { inizio: nu
     </HStack>
   </VStack>
 }
-function MeteoB({ m, larghezza }: { m: Meteo | null, larghezza: number }) {
+function MeteoB({ m, larghezza, scelto }: { m: Meteo | null, larghezza: number, scelto: number }) {
   if (!m) return <VStack frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
     <Text font={12} foregroundStyle={C.tenue}>Meteo non disponibile: apri lo script (▶) per salvare la posizione</Text>
     <Spacer />
     <HStack><Spacer /><Pulsante icona="calendar" intent={CambiaVista({ vista: 'cal' })} size={24} /></HStack>
   </VStack>
-  const ore = (m.prossime || []).slice(0, 5)
-  const pg = (m.prossime || []).find(o => precipitazione(o.cond) || (o.p || 0) >= 0.5)
+  // giorno scelto: oggi = adesso + le prossime 5 ore; un altro giorno = 6 ore distribuite nella giornata
+  const sg = Math.max(0, Math.min(5, scelto || 0))
+  const dSg = inizioGiorno(ora, sg)
+  const tutteSg = (m.orarie || {})[chiave(dSg)] || []
+  const ore = sg === 0 ? (m.prossime || []).slice(0, 5)
+    : [6, 9, 12, 15, 18, 21].map(h => tutteSg.find(o => o.h === h)).filter(Boolean) as any[]
+  const pg = (sg === 0 ? (m.prossime || []) : tutteSg.filter(o => o.h >= 6)).find(o => precipitazione(o.cond) || (o.p || 0) >= 0.5)
+  const gSg = (m.giorni || []).find(x => x.k === chiave(dSg))
+  const titolo = sg === 0 ? 'Oggi' : sg === 1 ? 'Domani' : `${GIORNI[dSg.getDay()]} ${dSg.getDate()}`
   const cw = Math.floor((larghezza - 4 * 5) / 6)
-  const giorni = [1, 2, 3, 4, 5, 6].map(o => {
+  const giorni = [0, 1, 2, 3, 4, 5].map(o => {
     const d = inizioGiorno(ora, o)
     return { d, g: (m.giorni || []).find(x => x.k === chiave(d)) }
   })
   const colonna = (h: string, icona: string, t: number, p: number, forte: boolean) =>
     <VStack spacing={2} frame={{ maxWidth: 'infinity' }}>
       <Text font={12} fontWeight={forte ? 'bold' : 'regular'} foregroundStyle={C.testo}>{h}</Text>
-      <Image systemName={icona} font={20} symbolRenderingMode="multicolor" foregroundStyle={C.tenue} frame={{ height: 24 }} />
+      <HStack frame={{ height: 24 }}><IconaMeteo nome={icona} size={20} /></HStack>
       <Text font={14} fontWeight={forte ? 'bold' : 'semibold'} foregroundStyle={C.testo}>{`${t}°`}</Text>
       <Text font={10} fontWeight="semibold" foregroundStyle="systemBlue">{p >= 0.1 ? `${Math.round(p * 100)}%` : ' '}</Text>
     </VStack>
@@ -300,7 +321,7 @@ function MeteoB({ m, larghezza }: { m: Meteo | null, larghezza: number }) {
         <RoundedRectangle fill={TINTA_BLU} cornerRadius={14} />
         <VStack spacing={4} padding={{ top: 8, bottom: 6, horizontal: 6 }}>
           <HStack padding={{ horizontal: 4 }}>
-            <Text font={12} fontWeight="bold" foregroundStyle={C.testo}>Oggi</Text>
+            <Text font={12} fontWeight="bold" foregroundStyle={C.testo}>{sg === 0 || !gSg ? titolo : `${titolo} · ${gSg.max}° / ${gSg.min}°`}</Text>
             <Spacer />
             {pg ? <HStack spacing={3}>
               <Image systemName="umbrella.fill" font={11} foregroundStyle="systemBlue" />
@@ -308,38 +329,42 @@ function MeteoB({ m, larghezza }: { m: Meteo | null, larghezza: number }) {
             </HStack> : null}
           </HStack>
           <HStack spacing={0}>
-            {colonna('Ora', m.icona, m.temp, 0, true)}
-            {ore.map(o => colonna(String(o.h), o.icona, o.t, o.p || 0, false))}
+            {sg === 0 ? colonna('Ora', m.icona, m.temp, 0, true) : null}
+            {ore.length ? ore.map(o => colonna(String(o.h), o.icona, o.t, o.p || 0, false))
+              : <Text font={11} foregroundStyle={C.tenue}>Previsioni orarie non ancora disponibili</Text>}
           </HStack>
         </VStack>
       </ZStack>
     </Link>
-    {/* prossimi 6 giorni, piccoli */}
-    <Link url="weather://">
-      <HStack spacing={4}>
-        {giorni.map(({ d, g }) => <ZStack frame={{ width: cw, height: 58 }}>
-          <RoundedRectangle fill={C.riquadro} cornerRadius={8} />
-          <VStack spacing={2}>
-            <Text font={10} fontWeight="semibold" foregroundStyle={C.tenue}>{GG[d.getDay()]}</Text>
-            <Image systemName={g ? g.icona : 'questionmark'} font={13} symbolRenderingMode="multicolor" foregroundStyle={C.tenue} frame={{ height: 16 }} />
-            <HStack spacing={2}>
-              <Text font={10} fontWeight="semibold" foregroundStyle={C.testo}>{g ? `${g.max}°` : '–'}</Text>
-              <Text font={10} foregroundStyle={C.tenue}>{g ? `${g.min}°` : ''}</Text>
-            </HStack>
-          </VStack>
-        </ZStack>)}
-      </HStack>
-    </Link>
+    {/* oggi e i prossimi 5 giorni: tocco = le ore di quel giorno nella fascia sopra */}
+    <HStack spacing={4}>
+      {giorni.map(({ d, g }, i) => {
+        const su = i === sg
+        return <Button buttonStyle="plain" intent={ScegliGiornoMeteo({ offset: i })}>
+          <ZStack frame={{ width: cw, height: 60 }}>
+            <RoundedRectangle fill={su ? TINTA_BLU : C.riquadro} cornerRadius={8} />
+            <VStack spacing={2}>
+              <Text font={10} fontWeight="bold" foregroundStyle={su ? 'systemBlue' : C.tenue}>{i === 0 ? 'Oggi' : GG[d.getDay()]}</Text>
+              <HStack frame={{ height: 18 }}><IconaMeteo nome={g ? g.icona : 'cloud'} size={15} /></HStack>
+              <HStack spacing={2}>
+                <Text font={10} fontWeight="semibold" foregroundStyle={C.testo}>{g ? `${g.max}°` : '–'}</Text>
+                <Text font={10} foregroundStyle={C.tenue}>{g ? `${g.min}°` : ''}</Text>
+              </HStack>
+            </VStack>
+          </ZStack>
+        </Button>
+      })}
+    </HStack>
     <Spacer />
     <HStack><Spacer /><Pulsante icona="calendar" intent={CambiaVista({ vista: 'cal' })} size={24} /></HStack>
   </VStack>
 }
-function GrandeB(p: { m: Meteo | null, vista: string, inizio: number, sel: number, conta: Record<number, number>, lista: Ev[], indice: number, larghezza: number }) {
+function GrandeB(p: { m: Meteo | null, vista: string, giornoMeteo: number, inizio: number, sel: number, conta: Record<number, number>, lista: Ev[], indice: number, larghezza: number }) {
   return <VStack alignment="leading" spacing={6} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
     <TestaB m={p.m} vista={p.vista} />
     <Rectangle fill={C.linea} frame={{ maxWidth: 'infinity', minHeight: 1, maxHeight: 1 }} />
     {p.vista === 'meteo' && p.m
-      ? <MeteoB m={p.m} larghezza={p.larghezza} />
+      ? <MeteoB m={p.m} larghezza={p.larghezza} scelto={p.giornoMeteo} />
       : <ImpegniB inizio={p.inizio} sel={p.sel} conta={p.conta} lista={p.lista} indice={p.indice} larghezza={p.larghezza} />}
   </VStack>
 }
@@ -748,7 +773,7 @@ async function disegna() {
     const da = inizioGiorno(ora, sel).getTime(), a = inizioGiorno(ora, sel + 1).getTime()
     const lista = tutti.filter(e => e.inizio >= da && e.inizio < a)
     salvaQuanti(lista.length) // le frecce ↑ ↓ si fermano all'ultimo impegno del giorno
-    corpo = <GrandeB m={m} vista={st.vista || 'cal'} inizio={da0} sel={sel} conta={conta} lista={lista} indice={st.evento} larghezza={L} />
+    corpo = <GrandeB m={m} vista={st.vista || 'cal'} giornoMeteo={st.giornoMeteo || 0} inizio={da0} sel={sel} conta={conta} lista={lista} indice={st.evento} larghezza={L} />
   } else {
     const tutti = await eventiTra(inizioGiorno(ora, -2), inizioGiorno(ora, 5)) || []
     const giorni: Record<number, number> = {}

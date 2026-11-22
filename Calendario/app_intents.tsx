@@ -95,3 +95,16 @@ export const CambiaVista = AppIntentManager.register({
     Widget.reloadAll(); try { (Widget as any).reloadUserWidgets?.() } catch (e) { }
   },
 })
+
+// Vista meteo del widget grande B: tocco su un giorno = le sue ore
+export const ScegliGiornoMeteo = AppIntentManager.register({
+  name: 'ScegliGiornoMeteo',
+  protocol: AppIntentProtocol.AppIntent,
+  perform: async ({ offset }: { offset: number }) => {
+    const s = leggiStato()
+    s.giornoMeteo = offset
+    salvaStato(s)
+    await pausa(500)
+    Widget.reloadAll(); try { (Widget as any).reloadUserWidgets?.() } catch (e) { }
+  },
+})
