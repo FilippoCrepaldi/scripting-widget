@@ -339,59 +339,73 @@ function PaginaContainer({ c }: { c: DatiContainer | null }) {
 }
 
 // ---------- pagina Scorte: calendario a 7 / 14 / 30 giorni ----------
-type Evento = { data: string, nome: string, tipo: 'rosso' | 'ambra' | 'blu', nota: string, dettaglio?: string }
+// Nella lista solo le cose da fare (rosso = ora, ambra = a breve).
+// Quello che è sotto scorta ma già in arrivo va in una riga sola in fondo: non c'è niente da fare.
+type Evento = { data: string, nome: string, tipo: 'rosso' | 'ambra', nota: string, dettaglio: string }
 function eventi(s: DatiScorte): Evento[] {
   const e: Evento[] = []
   for (const v of s.voci || []) {
     const data = v.entro || v.finisce
     if (!data || isNaN(gg(data))) continue
+    const tipo = v.stato === 'rosso' || v.ora || gg(data) <= 0 ? 'rosso' : 'ambra'
     const q = v.qta != null && v.qta > 0 ? `${Math.round(v.qta).toLocaleString('it-IT')} ${(v.udm || '').toLowerCase()}`.trim() : ''
     const fin = v.finisce && !isNaN(gg(v.finisce)) ? `finisce ${ggmm(v.finisce)}` : ''
-    if (v.stato === 'rosso') e.push({ data, nome: v.nome, tipo: 'rosso', nota: [q, gg(data) < 0 ? 'scaduto' : v.fornitore].filter(Boolean).join(' · '),
-      dettaglio: [gg(data) < 0 ? 'da ordinare subito' : `ordina entro ${ggmm(data)}`, q, v.fornitore, fin].filter(Boolean).join(' · ') })
-    else e.push({ data, nome: v.nome, tipo: 'ambra', nota: ['ordina', v.fornitore].filter(Boolean).join(' · '),
-      dettaglio: [`ordina entro ${ggmm(data)}`, v.fornitore, fin].filter(Boolean).join(' · ') })
+    if (v.azione) { e.push({ data, nome: v.nome, tipo, nota: v.azione, dettaglio: [v.azione, fin].filter(Boolean).join(' · ') }); continue }
+    const cosa = tipo === 'rosso' ? 'ordina oggi' : `ordina entro ${ggmm(data)}`
+    e.push({ data, nome: v.nome, tipo, nota: [q, v.fornitore].filter(Boolean).join(' · ') || cosa,
+      dettaglio: [cosa, q, v.fornitore, fin].filter(Boolean).join(' · ') })
   }
-  for (const a of s.giaInArrivo || []) {
-    if (!a || !a.nome || !a.quando || isNaN(gg(a.quando))) continue
-    const nota = a.da ? (eContainer(a.da) ? `in ${a.da}` : `arriva da ${a.da}`) : 'in arrivo'
-    e.push({ data: a.quando, nome: a.nome, tipo: 'blu', nota, dettaglio: `sotto scorta, ${nota} il ${ggmm(a.quando)}` })
-  }
-  return e.sort((x, y) => x.data.localeCompare(y.data))
+  // prima le cose da fare ora, poi in ordine di data
+  return e.sort((x, y) => (x.tipo === y.tipo ? 0 : x.tipo === 'rosso' ? -1 : 1) || x.data.localeCompare(y.data))
 }
+// le scadenze già passate si leggono come "oggi", non come una data vecchia
+function etichettaData(e: Evento) { return gg(e.data) <= 0 ? 'oggi' : ggmm(e.data) }
 function RigaEvento({ e, ultima }: { e: Evento, ultima: boolean }) {
-  const col = e.tipo === 'rosso' ? C.rosso : e.tipo === 'ambra' ? C.ambra : C.blu
-  if (XL() && e.dettaglio) return <VStack spacing={0}>
-    <HStack spacing={9} alignment="top" frame={{ maxWidth: 'infinity', minHeight: 40, maxHeight: 40 }} padding={{ top: 5 }}>
-      <Text font={13} fontWeight="bold" foregroundStyle={e.tipo === 'rosso' && gg(e.data) < 0 ? C.rossoTesto : C.testo} monospacedDigit frame={{ width: 42, alignment: 'leading' }}>{ggmm(e.data)}</Text>
-      <Circle fill={col} frame={{ width: 8, height: 8 }} padding={{ top: 5 }} />
-      <VStack alignment="leading" spacing={1}>
-        <Text font={13.5} fontWeight="semibold" foregroundStyle={C.testo} lineLimit={1}>{e.nome}</Text>
-        <Text font={11} foregroundStyle={C.tenue} lineLimit={1} minScaleFactor={0.85}>{e.dettaglio}</Text>
+  const col = e.tipo === 'rosso' ? C.rosso : C.ambra
+  const colData = e.tipo === 'rosso' ? C.rossoTesto : C.testo
+  if (XL()) return <VStack spacing={0}>
+    <HStack spacing={10} frame={{ maxWidth: 'infinity', minHeight: 44, maxHeight: 44 }}>
+      <Text font={13} fontWeight="bold" foregroundStyle={colData} monospacedDigit frame={{ width: 40, alignment: 'leading' }} lineLimit={1} minScaleFactor={0.8}>{etichettaData(e)}</Text>
+      <Circle fill={col} frame={{ width: 7, height: 7 }} />
+      <VStack alignment="leading" spacing={2}>
+        <Text font={14} fontWeight="semibold" foregroundStyle={C.testo} lineLimit={1} minScaleFactor={0.85}>{e.nome}</Text>
+        <Text font={11.5} foregroundStyle={C.tenue} lineLimit={1} minScaleFactor={0.75}>{e.dettaglio}</Text>
       </VStack>
       <Spacer />
     </HStack>
     {ultima ? null : <Linea />}
   </VStack>
   return <VStack spacing={0}>
-    <HStack spacing={9} frame={{ maxWidth: 'infinity', minHeight: 26, maxHeight: 26 }}>
-      <Text font={13} fontWeight="bold" foregroundStyle={e.tipo === 'rosso' && gg(e.data) < 0 ? C.rossoTesto : C.testo} monospacedDigit frame={{ width: 42, alignment: 'leading' }}>{ggmm(e.data)}</Text>
-      <Circle fill={col} frame={{ width: 8, height: 8 }} />
+    <HStack spacing={8} frame={{ maxWidth: 'infinity', minHeight: 27, maxHeight: 27 }}>
+      <Text font={12.5} fontWeight="bold" foregroundStyle={colData} monospacedDigit frame={{ width: 38, alignment: 'leading' }} lineLimit={1} minScaleFactor={0.8}>{etichettaData(e)}</Text>
+      <Circle fill={col} frame={{ width: 7, height: 7 }} />
       <Text font={13} fontWeight="semibold" foregroundStyle={C.testo} lineLimit={1} minScaleFactor={0.85}>{e.nome}</Text>
       <Spacer />
-      <Text font={11.5} foregroundStyle={C.tenue} lineLimit={1} minScaleFactor={0.8}>{e.nota}</Text>
+      <Text font={11} foregroundStyle={C.tenue} lineLimit={1} minScaleFactor={0.75}>{e.nota}</Text>
     </HStack>
     {ultima ? null : <Linea />}
   </VStack>
+}
+// riga in fondo: cosa è sotto scorta ma già in arrivo (nessuna azione)
+function GiaInArrivo({ s, fino }: { s: DatiScorte, fino: string }) {
+  const l = (s.giaInArrivo || []).filter(a => a && a.nome && a.quando && !isNaN(gg(a.quando)) && a.quando <= fino)
+  if (!l.length) return null
+  return <HStack spacing={6} alignment="top" modifiers={fondo(C.riquadro, 10, { top: 6, bottom: 6, leading: 10, trailing: 10 }, { maxWidth: 'infinity', alignment: 'leading' })}>
+    <Circle fill={C.blu} frame={{ width: 6, height: 6 }} padding={{ top: 4 }} />
+    <Text font={11} foregroundStyle={C.tenue} lineLimit={XL() ? 2 : 1} minScaleFactor={0.8}>
+      {'Già in arrivo: ' + l.map(a => `${a.nome} ${ggmm(a.quando as string)}`).join(' · ')}
+    </Text>
+    <Spacer />
+  </HStack>
 }
 function Legenda({ s }: { s: DatiScorte }) {
   const giorniDati = s.controllo ? -gg(s.controllo) : 99
   const vecchi = giorniDati > 5 // i controlli sono il lunedì e il mercoledì
   const punto = (col: any, t: string) => <HStack spacing={3}><Circle fill={col} frame={{ width: 6, height: 6 }} /><Text font={10.5} foregroundStyle={C.tenue}>{t}</Text></HStack>
   return <HStack spacing={10}>
-    {punto(C.rosso, 'da ordinare')}{punto(C.ambra, 'a breve')}{punto(C.blu, 'in arrivo')}
+    {punto(C.rosso, 'da fare ora')}{punto(C.ambra, 'a breve')}
     <Spacer />
-    {s.controllo ? <Text font={10.5} fontWeight={vecchi ? 'semibold' : 'regular'} foregroundStyle={vecchi ? C.rossoTesto : C.tenue}>{`dati del ${ggmm(s.controllo)}`}</Text> : null}
+    {s.controllo ? <Text font={10.5} fontWeight={vecchi ? 'semibold' : 'regular'} foregroundStyle={vecchi ? C.rossoTesto : C.tenue}>{`controllo del ${ggmm(s.controllo)}`}</Text> : null}
   </HStack>
 }
 function PaginaScorte({ s }: { s: DatiScorte | null }) {
@@ -401,28 +415,26 @@ function PaginaScorte({ s }: { s: DatiScorte | null }) {
   const fin = new Date(); fin.setHours(0, 0, 0, 0); fin.setDate(fin.getDate() + giorni)
   const limite = `${fin.getFullYear()}-${String(fin.getMonth() + 1).padStart(2, '0')}-${String(fin.getDate()).padStart(2, '0')}`
   const dentro = tutti.filter(e => e.data <= limite) // anche quelli già scaduti
-  const MAX = XL() ? 9 : 7
+  // righe che stanno nel widget senza tagliare niente: grande 6 da 27 punti, pagina intera 6 da 44
+  const MAX = 6
   const righe = dentro.slice(0, MAX)
   const dopo = tutti.length - dentro.length
   const barra = <Barra voci={[7, 14, 30].map(n => ({ testo: `${n} giorni`, sel: giorni === n, intent: CambiaGiorni({ giorni: String(n) }) }))} />
+  const altri = [dentro.length > righe.length ? `+${dentro.length - righe.length} in questo periodo` : '', dopo > 0 ? `${dopo} più avanti` : ''].filter(Boolean).join(' · ')
   return <VStack alignment="leading" spacing={0} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'topLeading' }}>
     {barra}
-    <VStack spacing={0} padding={{ top: 8 }}>
-      <Titoletto testo={`COSA SUCCEDE FINO AL ${ggmm(limite)}`} destra={dentro.length === 1 ? '1 cosa' : `${dentro.length} cose`} />
+    <VStack spacing={0} padding={{ top: 9, bottom: 2 }}>
+      <Titoletto testo={`DA FARE FINO AL ${ggmm(limite)}`} destra={altri || (dentro.length === 1 ? '1 cosa' : `${dentro.length} cose`)} />
     </VStack>
     {righe.length
       ? righe.map((e, i) => <RigaEvento e={e} ultima={i === righe.length - 1} />)
       : <HStack spacing={6} frame={{ minHeight: 34, maxHeight: 34 }}>
           <Circle fill={C.verde} frame={{ width: 8, height: 8 }} />
-          <Text font={13.5} fontWeight="semibold" foregroundStyle={C.testo}>{`Niente nei prossimi ${giorni} giorni`}</Text>
+          <Text font={13.5} fontWeight="semibold" foregroundStyle={C.testo}>{`Niente da fare nei prossimi ${giorni} giorni`}</Text>
         </HStack>}
-    {dentro.length > righe.length || dopo > 0
-      ? <Text font={11} foregroundStyle={C.tenue} padding={{ top: 3 }}>
-          {[dentro.length > righe.length ? `+${dentro.length - righe.length} in questo periodo` : '', dopo > 0 ? `${dopo} più avanti` : ''].filter(Boolean).join(' · ')}
-        </Text>
-      : null}
     <Spacer />
-    <Legenda s={s} />
+    <GiaInArrivo s={s} fino={limite} />
+    <VStack spacing={0} padding={{ top: 6 }}><Legenda s={s} /></VStack>
   </VStack>
 }
 

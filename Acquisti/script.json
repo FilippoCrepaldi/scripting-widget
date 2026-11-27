@@ -1,7 +1,7 @@
 {
   "name": "Acquisti",
   "color": "rgba(31,99,198,1)",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Widget grande con due pagine: container in arrivo (Container Tracker) e scorte di materia prima (controllo riordino)",
   "localizedNames": null,
   "runInApp": false,

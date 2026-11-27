@@ -49,7 +49,8 @@ export type DatiContainer = {
   aggiornato?: string, inViaggio?: number, stato?: string, etichetta?: string, titolo?: string, azione?: string,
   nota?: string, prossimo?: string, arrivi?: Arrivo[]
 }
-export type VoceScorta = { nome: string, finisce?: string, entro?: string | null, ora?: boolean, stato?: string, qta?: number | null, udm?: string, fornitore?: string }
+// azione: frase breve già pronta dal file dei dati (es. "anticipa l'arrivo del 02/12 · mancano 250 kg"); se manca il widget la compone
+export type VoceScorta = { nome: string, finisce?: string, entro?: string | null, ora?: boolean, stato?: string, qta?: number | null, udm?: string, fornitore?: string, azione?: string }
 export type InArrivo = { nome: string, da?: string, quando?: string }
 export type DatiScorte = {
   aggiornato?: string, controllo?: string, totale?: number, daOrdinare?: number, aBreve?: number, inArrivo?: number, coperte?: number,
