@@ -489,8 +489,8 @@ async function disegna() {
   </VStack>
 
   Widget.present(
-    <VStack widgetBackground={C.sfondo} widgetURL={APRI_PANNELLO} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
-      <VStack padding={14} frame={{ maxWidth: 'infinity', maxHeight: 'infinity' }}>
+    <VStack widgetBackground={C.sfondo} widgetURL={APRI_PANNELLO} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'top' }}>
+      <VStack padding={14} frame={{ maxWidth: 'infinity', maxHeight: 'infinity', alignment: 'top' }}>
         {corpo}
       </VStack>
     </VStack>,
